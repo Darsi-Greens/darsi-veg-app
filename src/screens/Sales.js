@@ -15,42 +15,65 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_SIZE = (SCREEN_WIDTH - 48) / 2;
 
-const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
-const QTY_STEP = { kg: 0.5, bundle: 1, piece: 1, dozen: 1 };
+// ── Unit definitions ────────────────────────────────────────────────────────────
+// Telugu labels for the three user-facing units
+const UNIT_TE  = { kg: 'కేజీ', gm: 'గ్రాముల', pcs: 'పీస్' };
+const UNIT_EN  = { kg: 'kg',   gm: 'gm',      pcs: 'pcs'  };
 
+// Which tabs to show based on the vegetable's base unit in Firestore
+const UNIT_TABS = {
+  kg:     ['kg', 'gm'],
+  piece:  ['pcs'],
+  bundle: ['pcs'],
+  dozen:  ['pcs'],
+};
+
+// Stepper increment per unit
+const QTY_STEP = { kg: 0.5, gm: 100, pcs: 1 };
+
+// Convert user qty in selected unit → base unit qty (for total = baseQty × pricePerKg)
+const toBaseQty = (qty, unit) => (unit === 'gm' ? qty / 1000 : qty);
+
+// ── Payment modes ───────────────────────────────────────────────────────────────
 const PAYMENT_MODES = [
   { key: 'cash',   te: 'నగదు',  en: 'Cash'   },
   { key: 'upi',    te: 'UPI',   en: 'UPI'    },
   { key: 'credit', te: 'అప్పు', en: 'Credit' },
 ];
 
+// ── Async storage keys ──────────────────────────────────────────────────────────
+const CACHE_VEG_KEY     = '@darsi_vegetables_v1';
+const OFFLINE_QUEUE_KEY = '@darsi_pending_sales_v1';
+
+// ── Fallback vegetable list (matches seed data, used when offline + no cache) ──
 const FALLBACK_VEGETABLES = [
-  { id: 'tomato',       name_te: 'టమాట',         name_en: 'Tomato',           emoji: '🍅', unit: 'kg',     active: true },
-  { id: 'onion',        name_te: 'ఉల్లిపాయ',     name_en: 'Onion',            emoji: '🧅', unit: 'kg',     active: true },
-  { id: 'potato',       name_te: 'బంగాళదుంప',    name_en: 'Potato',           emoji: '🥔', unit: 'kg',     active: true },
-  { id: 'brinjal',      name_te: 'వంకాయ',         name_en: 'Brinjal',          emoji: '🍆', unit: 'kg',     active: true },
-  { id: 'okra',         name_te: 'బెండకాయ',       name_en: 'Okra',             emoji: '🌿', unit: 'kg',     active: true },
-  { id: 'bittergourd',  name_te: 'కాకరకాయ',       name_en: 'Bitter Gourd',     emoji: '🥒', unit: 'kg',     active: true },
-  { id: 'ridgegourd',   name_te: 'బీరకాయ',        name_en: 'Ridge Gourd',      emoji: '🥒', unit: 'kg',     active: true },
-  { id: 'bottlegourd',  name_te: 'సొరకాయ',        name_en: 'Bottle Gourd',     emoji: '🎃', unit: 'piece',  active: true },
-  { id: 'snakegourd',   name_te: 'పొట్లకాయ',      name_en: 'Snake Gourd',      emoji: '🌿', unit: 'kg',     active: true },
-  { id: 'cucumber',     name_te: 'దోసకాయ',        name_en: 'Cucumber',         emoji: '🥒', unit: 'kg',     active: true },
-  { id: 'greenchilli',  name_te: 'పచ్చి మిర్చి',  name_en: 'Green Chilli',     emoji: '🌶️', unit: 'kg',    active: true },
-  { id: 'capsicum',     name_te: 'క్యాప్సికం',    name_en: 'Capsicum',         emoji: '🫑', unit: 'kg',     active: true },
-  { id: 'carrot',       name_te: 'క్యారెట్',       name_en: 'Carrot',           emoji: '🥕', unit: 'kg',     active: true },
-  { id: 'cauliflower',  name_te: 'కాలిఫ్లవర్',    name_en: 'Cauliflower',      emoji: '🥦', unit: 'piece',  active: true },
-  { id: 'cabbage',      name_te: 'క్యాబేజీ',       name_en: 'Cabbage',          emoji: '🥬', unit: 'piece',  active: true },
-  { id: 'spinach',      name_te: 'పాలకూర',         name_en: 'Spinach',          emoji: '🥬', unit: 'bundle', active: true },
-  { id: 'fenugreek',    name_te: 'మెంతికూర',       name_en: 'Fenugreek Leaves', emoji: '🌿', unit: 'bundle', active: true },
-  { id: 'drumstick',    name_te: 'మునగకాయ',        name_en: 'Drumstick',        emoji: '🌿', unit: 'kg',     active: true },
-  { id: 'rawbanana',    name_te: 'అరటికాయ',        name_en: 'Raw Banana',       emoji: '🍌', unit: 'dozen',  active: true },
-  { id: 'clusterbeans', name_te: 'గోరుచిక్కుడు',  name_en: 'Cluster Beans',    emoji: '🫘', unit: 'kg',     active: true },
+  { id: 'tomato',       name_te: 'టమాట',         name_en: 'Tomato',           emoji: '🍅', unit: 'kg'    },
+  { id: 'onion',        name_te: 'ఉల్లిపాయ',     name_en: 'Onion',            emoji: '🧅', unit: 'kg'    },
+  { id: 'potato',       name_te: 'బంగాళదుంప',    name_en: 'Potato',           emoji: '🥔', unit: 'kg'    },
+  { id: 'brinjal',      name_te: 'వంకాయ',         name_en: 'Brinjal',          emoji: '🍆', unit: 'kg'    },
+  { id: 'okra',         name_te: 'బెండకాయ',       name_en: 'Okra',             emoji: '🌿', unit: 'kg'    },
+  { id: 'bittergourd',  name_te: 'కాకరకాయ',       name_en: 'Bitter Gourd',     emoji: '🥒', unit: 'kg'    },
+  { id: 'ridgegourd',   name_te: 'బీరకాయ',        name_en: 'Ridge Gourd',      emoji: '🥒', unit: 'kg'    },
+  { id: 'bottlegourd',  name_te: 'సొరకాయ',        name_en: 'Bottle Gourd',     emoji: '🎃', unit: 'piece' },
+  { id: 'snakegourd',   name_te: 'పొట్లకాయ',      name_en: 'Snake Gourd',      emoji: '🌿', unit: 'kg'    },
+  { id: 'cucumber',     name_te: 'దోసకాయ',        name_en: 'Cucumber',         emoji: '🥒', unit: 'kg'    },
+  { id: 'greenchilli',  name_te: 'పచ్చి మిర్చి',  name_en: 'Green Chilli',     emoji: '🌶️', unit: 'kg'   },
+  { id: 'capsicum',     name_te: 'క్యాప్సికం',    name_en: 'Capsicum',         emoji: '🫑', unit: 'kg'    },
+  { id: 'carrot',       name_te: 'క్యారెట్',       name_en: 'Carrot',           emoji: '🥕', unit: 'kg'    },
+  { id: 'cauliflower',  name_te: 'కాలిఫ్లవర్',    name_en: 'Cauliflower',      emoji: '🥦', unit: 'piece' },
+  { id: 'cabbage',      name_te: 'క్యాబేజీ',       name_en: 'Cabbage',          emoji: '🥬', unit: 'piece' },
+  { id: 'spinach',      name_te: 'పాలకూర',         name_en: 'Spinach',          emoji: '🥬', unit: 'bundle'},
+  { id: 'fenugreek',    name_te: 'మెంతికూర',       name_en: 'Fenugreek Leaves', emoji: '🌿', unit: 'bundle'},
+  { id: 'drumstick',    name_te: 'మునగకాయ',        name_en: 'Drumstick',        emoji: '🌿', unit: 'kg'    },
+  { id: 'rawbanana',    name_te: 'అరటికాయ',        name_en: 'Raw Banana',       emoji: '🍌', unit: 'dozen' },
+  { id: 'clusterbeans', name_te: 'గోరుచిక్కుడు',  name_en: 'Cluster Beans',    emoji: '🫘', unit: 'kg'    },
 ];
 
 function todayStr() {
@@ -58,22 +81,32 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// ── Component ───────────────────────────────────────────────────────────────────
 export default function Sales() {
-  const [vegetables, setVegetables] = useState([]);
-  const [priceMap, setPriceMap]     = useState({});
-  const [search, setSearch]         = useState('');
-  const [loading, setLoading]       = useState(true);
-  const [selected, setSelected]     = useState(null);
-  const [qty, setQty]               = useState('1');
-  const [paymentMode, setPayMode]   = useState('cash');
-  const [saving, setSaving]         = useState(false);
+  const [vegetables,   setVegetables]  = useState([]);
+  const [priceById,    setPriceById]   = useState({});  // Firestore veg ID → price doc
+  const [priceByName,  setPriceByName] = useState({});  // English name (lower) → price doc
+  const [search,       setSearch]      = useState('');
+  const [loading,      setLoading]     = useState(true);
+  const [pendingCount, setPending]     = useState(0);
+
+  // Modal state
+  const [selected,   setSelected]  = useState(null);
+  const [activeUnit, setActiveUnit] = useState('kg');
+  const [qty,        setQty]       = useState('1');
+  const [payMode,    setPayMode]   = useState('cash');
+  const [saving,     setSaving]    = useState(false);
 
   useEffect(() => {
     const date = todayStr();
-    Promise.all([loadVegetables(), loadPrices(date)]).finally(() =>
-      setLoading(false)
-    );
+    Promise.all([
+      loadVegetables(),
+      loadPrices(date),
+      flushOfflineQueue(),
+    ]).finally(() => setLoading(false));
   }, []);
+
+  // ── Data loaders ──────────────────────────────────────────────────────────────
 
   const loadVegetables = async () => {
     try {
@@ -82,50 +115,125 @@ export default function Sales() {
         .map((d) => ({ id: d.id, ...d.data() }))
         .filter((v) => v.active !== false)
         .sort((a, b) => a.name_en.localeCompare(b.name_en));
-      setVegetables(vegs.length ? vegs : FALLBACK_VEGETABLES);
+      const list = vegs.length ? vegs : FALLBACK_VEGETABLES;
+      setVegetables(list);
+      await AsyncStorage.setItem(CACHE_VEG_KEY, JSON.stringify(list));
     } catch {
-      setVegetables(FALLBACK_VEGETABLES);
+      // Offline: try cache, fall back to hardcoded list
+      try {
+        const cached = await AsyncStorage.getItem(CACHE_VEG_KEY);
+        setVegetables(cached ? JSON.parse(cached) : FALLBACK_VEGETABLES);
+      } catch {
+        setVegetables(FALLBACK_VEGETABLES);
+      }
     }
   };
 
   const loadPrices = async (date) => {
     try {
       const snap = await getDocs(collection(db, 'prices', date, 'vegetables'));
-      const map = {};
-      snap.forEach((d) => { map[d.id] = d.data(); });
-      setPriceMap(map);
+      const byId   = {};
+      const byName = {};
+      snap.forEach((d) => {
+        const data = d.data();
+        byId[d.id] = data;
+        // MorningPrices.js stores 'englishName'; schema uses 'veg_name_en' — handle both
+        const nameKey = (data.englishName || data.veg_name_en || '').toLowerCase().trim();
+        if (nameKey) byName[nameKey] = data;
+      });
+      setPriceById(byId);
+      setPriceByName(byName);
     } catch {
-      // offline — cards will show "ధర లేదు"
+      // Offline — prices will show as "ధర లేదు" until reconnected
     }
   };
 
+  // ── Offline sales queue ───────────────────────────────────────────────────────
+
+  const flushOfflineQueue = async () => {
+    try {
+      const raw   = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+      const queue = raw ? JSON.parse(raw) : [];
+      if (!queue.length) { setPending(0); return; }
+
+      const failed = [];
+      for (const { queued_at, ...sale } of queue) {
+        try {
+          await addDoc(collection(db, 'sales'), {
+            ...sale,
+            created_at:          serverTimestamp(),
+            synced_from_offline: true,
+          });
+        } catch {
+          failed.push({ ...sale, queued_at });
+        }
+      }
+      await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(failed));
+      setPending(failed.length);
+    } catch {
+      /* storage error — ignore */
+    }
+  };
+
+  const queueOfflineSale = async (saleData) => {
+    try {
+      const raw   = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+      const queue = raw ? JSON.parse(raw) : [];
+      queue.push({ ...saleData, queued_at: new Date().toISOString() });
+      await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+      setPending(queue.length);
+    } catch { /* storage error */ }
+  };
+
+  // ── Price helpers ─────────────────────────────────────────────────────────────
+
+  // Look up by Firestore ID first; fall back to English name for MorningPrices compat
+  const getPriceData = (veg) =>
+    priceById[veg.id] ?? priceByName[veg.name_en.toLowerCase().trim()];
+
+  const getSellPrice = (veg) => {
+    const d = getPriceData(veg);
+    return d?.sell_price ?? d?.price ?? 0;
+  };
+
+  const calcTotal = (veg, rawQty, unit) => {
+    const price = getSellPrice(veg);
+    const base  = toBaseQty(parseFloat(rawQty) || 0, unit);
+    return (base * price).toFixed(2);
+  };
+
+  // ── Modal helpers ─────────────────────────────────────────────────────────────
+
   const openModal = (veg) => {
+    const tabs = UNIT_TABS[veg.unit] ?? ['pcs'];
     setSelected(veg);
-    const step = QTY_STEP[veg.unit] ?? 1;
-    setQty(String(step));
+    setActiveUnit(tabs[0]);
+    setQty(String(QTY_STEP[tabs[0]] ?? 1));
     setPayMode('cash');
   };
 
   const closeModal = () => setSelected(null);
 
+  const switchUnit = (unit) => {
+    setActiveUnit(unit);
+    setQty(String(QTY_STEP[unit] ?? 1));
+  };
+
   const stepQty = (dir) => {
-    const step = QTY_STEP[selected?.unit] ?? 1;
+    const step = QTY_STEP[activeUnit] ?? 1;
     const next = Math.max(step, (parseFloat(qty) || 0) + dir * step);
-    setQty(step < 1 ? String(next) : String(Math.round(next)));
+    // For gm keep integer; for kg allow one decimal
+    setQty(activeUnit === 'kg' ? String(next) : String(Math.round(next)));
   };
 
   const handleConfirm = async () => {
     const quantity = parseFloat(qty);
     if (!quantity || quantity <= 0) {
-      Alert.alert(
-        'పరిమాణం లోపం',
-        'సరైన పరిమాణం నమోదు చేయండి.\nEnter a valid quantity.'
-      );
+      Alert.alert('పరిమాణం లోపం', 'సరైన పరిమాణం నమోదు చేయండి.\nEnter a valid quantity.');
       return;
     }
 
-    const priceData = priceMap[selected.id];
-    const sellPrice = priceData?.sell_price ?? priceData?.price ?? 0;
+    const sellPrice = getSellPrice(selected);
     if (!sellPrice) {
       Alert.alert(
         'ధర లేదు / No Price Set',
@@ -134,38 +242,42 @@ export default function Sales() {
       return;
     }
 
+    const totalAmount = parseFloat(calcTotal(selected, qty, activeUnit));
+    const saleDoc = {
+      veg_id:       selected.id,
+      veg_name_te:  selected.name_te,
+      veg_name_en:  selected.name_en,
+      veg_emoji:    selected.emoji ?? '',
+      sale_date:    todayStr(),
+      quantity,
+      unit:         activeUnit,           // kg / gm / pcs
+      sell_price:   sellPrice,            // always price per kg (or per piece)
+      total_amount: totalAmount,
+      payment_mode: payMode,
+    };
+
     setSaving(true);
     try {
-      const totalAmount = parseFloat((quantity * sellPrice).toFixed(2));
-      await addDoc(collection(db, 'sales'), {
-        veg_id:       selected.id,
-        veg_name_te:  selected.name_te,
-        veg_name_en:  selected.name_en,
-        veg_emoji:    selected.emoji ?? '',
-        sale_date:    todayStr(),
-        quantity,
-        unit:         selected.unit ?? 'kg',
-        sell_price:   sellPrice,
-        total_amount: totalAmount,
-        payment_mode: paymentMode,
-        created_at:   serverTimestamp(),
-      });
-
-      const unitLabel = UNIT_TE[selected.unit] ?? selected.unit;
+      await addDoc(collection(db, 'sales'), { ...saleDoc, created_at: serverTimestamp() });
       closeModal();
       Alert.alert(
         '✓ అమ్మకం నిర్ధారించబడింది / Sale Saved',
-        `${selected.name_te} — ${quantity} ${unitLabel}\nమొత్తం / Total: ₹${totalAmount}`
+        `${selected.name_te} — ${quantity} ${UNIT_TE[activeUnit]}\nమొత్తం / Total: ₹${totalAmount}`
       );
     } catch {
+      // Offline: queue locally and sync when internet returns
+      await queueOfflineSale(saleDoc);
+      closeModal();
       Alert.alert(
-        'లోపం / Error',
-        'అమ్మకం సేవ్ చేయడం విఫలమైంది.\nFailed to save. Check connection.'
+        'అఫ్‌లైన్‌లో సేవ్ అయింది / Saved Offline',
+        `${selected.name_te} — ₹${totalAmount}\n\nఇంటర్నెట్ వచ్చినప్పుడు స్వయంగా సింక్ అవుతుంది.\nWill sync automatically when internet returns.`
       );
     } finally {
       setSaving(false);
     }
   };
+
+  // ── Filtered list ─────────────────────────────────────────────────────────────
 
   const filtered = vegetables.filter((v) => {
     if (!search.trim()) return true;
@@ -173,11 +285,12 @@ export default function Sales() {
     return v.name_te.includes(search) || v.name_en.toLowerCase().includes(q);
   });
 
-  // ─── Vegetable card ──────────────────────────────────────────────────────────
+  // ── Render: vegetable card ────────────────────────────────────────────────────
+
   const renderCard = ({ item }) => {
-    const priceData = priceMap[item.id];
-    const sellPrice = priceData?.sell_price ?? priceData?.price;
-    const unitLabel = UNIT_TE[item.unit] ?? item.unit;
+    const sellPrice  = getSellPrice(item);
+    const baseUnit   = UNIT_TABS[item.unit]?.[0] ?? 'pcs';
+    const unitLabel  = UNIT_TE[baseUnit];
 
     return (
       <TouchableOpacity
@@ -186,23 +299,15 @@ export default function Sales() {
         activeOpacity={0.78}
       >
         {item.photo_url ? (
-          <Image
-            source={{ uri: item.photo_url }}
-            style={styles.cardPhoto}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: item.photo_url }} style={styles.cardPhoto} resizeMode="cover" />
         ) : (
           <View style={styles.cardEmojiBox}>
             <Text style={styles.cardEmoji}>{item.emoji ?? '🥬'}</Text>
           </View>
         )}
         <View style={styles.cardBody}>
-          <Text style={styles.cardNameTe} numberOfLines={1}>
-            {item.name_te}
-          </Text>
-          <Text style={styles.cardNameEn} numberOfLines={1}>
-            {item.name_en}
-          </Text>
+          <Text style={styles.cardNameTe} numberOfLines={1}>{item.name_te}</Text>
+          <Text style={styles.cardNameEn} numberOfLines={1}>{item.name_en}</Text>
           <Text style={[styles.cardPrice, !sellPrice && styles.cardNoPrice]}>
             {sellPrice ? `₹${sellPrice}/${unitLabel}` : 'ధర లేదు'}
           </Text>
@@ -211,23 +316,17 @@ export default function Sales() {
     );
   };
 
-  // ─── Sale modal ──────────────────────────────────────────────────────────────
+  // ── Render: sale modal ────────────────────────────────────────────────────────
+
   const renderModal = () => {
     if (!selected) return null;
 
-    const priceData = priceMap[selected.id];
-    const sellPrice = priceData?.sell_price ?? priceData?.price ?? 0;
-    const quantity  = parseFloat(qty) || 0;
-    const total     = (quantity * sellPrice).toFixed(2);
-    const unitLabel = UNIT_TE[selected.unit] ?? selected.unit;
+    const unitTabs   = UNIT_TABS[selected.unit] ?? ['pcs'];
+    const sellPrice  = getSellPrice(selected);
+    const total      = calcTotal(selected, qty, activeUnit);
 
     return (
-      <Modal
-        visible
-        transparent
-        animationType="slide"
-        onRequestClose={closeModal}
-      >
+      <Modal visible transparent animationType="slide" onRequestClose={closeModal}>
         <View style={styles.overlay}>
           <View style={styles.sheet}>
             <ScrollView
@@ -235,16 +334,11 @@ export default function Sales() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              {/* Drag handle */}
               <View style={styles.handle} />
 
               {/* Photo / emoji */}
               {selected.photo_url ? (
-                <Image
-                  source={{ uri: selected.photo_url }}
-                  style={styles.sheetPhoto}
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: selected.photo_url }} style={styles.sheetPhoto} resizeMode="cover" />
               ) : (
                 <View style={styles.sheetEmojiBox}>
                   <Text style={styles.sheetEmoji}>{selected.emoji ?? '🥬'}</Text>
@@ -255,12 +349,35 @@ export default function Sales() {
               <Text style={styles.sheetNameTe}>{selected.name_te}</Text>
               <Text style={styles.sheetNameEn}>{selected.name_en}</Text>
 
-              {/* Price */}
+              {/* Today's price */}
               <Text style={sellPrice ? styles.sheetPrice : styles.sheetNoPrice}>
                 {sellPrice
-                  ? `₹${sellPrice} / ${unitLabel}`
+                  ? `₹${sellPrice} / ${UNIT_TE[UNIT_TABS[selected.unit]?.[0] ?? 'pcs']}`
                   : 'ఈ రోజు ధర లేదు / No price set today'}
               </Text>
+
+              {/* Unit selector — only shown when veg has multiple units (kg/gm) */}
+              {unitTabs.length > 1 && (
+                <>
+                  <Text style={styles.sectionLabel}>యూనిట్ / Unit</Text>
+                  <View style={styles.unitTabs}>
+                    {unitTabs.map((u) => (
+                      <TouchableOpacity
+                        key={u}
+                        style={[styles.unitTab, activeUnit === u && styles.unitTabActive]}
+                        onPress={() => switchUnit(u)}
+                      >
+                        <Text style={[styles.unitTabTe, activeUnit === u && styles.unitTabActiveText]}>
+                          {UNIT_TE[u]}
+                        </Text>
+                        <Text style={[styles.unitTabEn, activeUnit === u && styles.unitTabActiveText]}>
+                          {UNIT_EN[u]}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
 
               {/* Quantity stepper */}
               <Text style={styles.sectionLabel}>పరిమాణం / Quantity</Text>
@@ -275,7 +392,7 @@ export default function Sales() {
                   onChangeText={(v) => /^\d*\.?\d*$/.test(v) && setQty(v)}
                   selectTextOnFocus
                 />
-                <Text style={styles.qtyUnit}>{unitLabel}</Text>
+                <Text style={styles.qtyUnit}>{UNIT_TE[activeUnit]}</Text>
                 <TouchableOpacity style={styles.qtyBtn} onPress={() => stepQty(1)}>
                   <Text style={styles.qtyBtnText}>+</Text>
                 </TouchableOpacity>
@@ -293,20 +410,20 @@ export default function Sales() {
                 {PAYMENT_MODES.map((m) => (
                   <TouchableOpacity
                     key={m.key}
-                    style={[styles.payBtn, paymentMode === m.key && styles.payBtnActive]}
+                    style={[styles.payBtn, payMode === m.key && styles.payBtnActive]}
                     onPress={() => setPayMode(m.key)}
                   >
-                    <Text style={[styles.payBtnTe, paymentMode === m.key && styles.payBtnActiveText]}>
+                    <Text style={[styles.payBtnTe, payMode === m.key && styles.payBtnActiveText]}>
                       {m.te}
                     </Text>
-                    <Text style={[styles.payBtnEn, paymentMode === m.key && styles.payBtnActiveText]}>
+                    <Text style={[styles.payBtnEn, payMode === m.key && styles.payBtnActiveText]}>
                       {m.en}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              {/* Actions */}
+              {/* Action buttons */}
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeModal}>
                   <Text style={styles.cancelText}>రద్దు / Cancel</Text>
@@ -328,14 +445,26 @@ export default function Sales() {
     );
   };
 
-  // ─── Main render ─────────────────────────────────────────────────────────────
+  // ── Main render ───────────────────────────────────────────────────────────────
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>అమ్మకాలు</Text>
-        <Text style={styles.headerSub}>Sales — {todayStr()}</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.headerTitle}>అమ్మకాలు</Text>
+            <Text style={styles.headerSub}>Sales — {todayStr()}</Text>
+          </View>
+          {pendingCount > 0 && (
+            <TouchableOpacity style={styles.syncBadge} onPress={flushOfflineQueue}>
+              <Text style={styles.syncBadgeText}>⟳ {pendingCount} పెండింగ్</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
+      {/* Search bar */}
       <View style={styles.searchWrap}>
         <TextInput
           style={styles.searchInput}
@@ -348,6 +477,7 @@ export default function Sales() {
         />
       </View>
 
+      {/* Grid */}
       {loading ? (
         <ActivityIndicator style={styles.loader} size="large" color="#2d6a4f" />
       ) : (
@@ -374,6 +504,7 @@ export default function Sales() {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -386,6 +517,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   headerTitle: {
     fontSize: 26,
     fontWeight: 'bold',
@@ -395,6 +531,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#a8d5b5',
     marginTop: 2,
+  },
+  syncBadge: {
+    backgroundColor: '#f4a261',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  syncBadgeText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
 
   // Search
@@ -503,7 +650,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '92%',
+    maxHeight: '94%',
   },
   sheetContent: {
     padding: 24,
@@ -518,6 +665,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
+  // Sheet veg display
   sheetPhoto: {
     width: 140,
     height: 140,
@@ -536,7 +684,6 @@ const styles = StyleSheet.create({
   sheetEmoji: {
     fontSize: 72,
   },
-
   sheetNameTe: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -565,13 +712,46 @@ const styles = StyleSheet.create({
 
   sectionLabel: {
     alignSelf: 'flex-start',
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#555',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#666',
     marginTop: 20,
     marginBottom: 8,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+  },
+
+  // Unit selector tabs
+  unitTabs: {
+    flexDirection: 'row',
+    gap: 10,
+    alignSelf: 'stretch',
+  },
+  unitTab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#b7e4c7',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  unitTabActive: {
+    backgroundColor: '#1a472a',
+    borderColor: '#1a472a',
+  },
+  unitTabTe: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2d6a4f',
+  },
+  unitTabEn: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 2,
+  },
+  unitTabActiveText: {
+    color: '#fff',
   },
 
   // Quantity stepper
@@ -581,22 +761,22 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   qtyBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#2d6a4f',
     alignItems: 'center',
     justifyContent: 'center',
   },
   qtyBtnText: {
-    fontSize: 28,
+    fontSize: 30,
     color: '#fff',
     fontWeight: '300',
-    lineHeight: 32,
+    lineHeight: 34,
   },
   qtyInput: {
-    width: 80,
-    height: 52,
+    width: 88,
+    height: 56,
     borderWidth: 2,
     borderColor: '#b7e4c7',
     borderRadius: 12,
@@ -609,7 +789,8 @@ const styles = StyleSheet.create({
   qtyUnit: {
     fontSize: 16,
     color: '#555',
-    fontWeight: '500',
+    fontWeight: '600',
+    minWidth: 40,
   },
 
   // Total
@@ -619,18 +800,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     marginTop: 20,
-    backgroundColor: '#f0f7f0',
-    borderRadius: 12,
+    backgroundColor: '#e8f5ec',
+    borderRadius: 14,
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 16,
   },
   totalLabel: {
-    fontSize: 16,
+    fontSize: 17,
     color: '#444',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   totalValue: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: 'bold',
     color: '#1a472a',
   },
@@ -639,7 +820,7 @@ const styles = StyleSheet.create({
   payRow: {
     flexDirection: 'row',
     gap: 10,
-    width: '100%',
+    alignSelf: 'stretch',
   },
   payBtn: {
     flex: 1,
@@ -672,7 +853,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: 12,
-    width: '100%',
+    alignSelf: 'stretch',
     marginTop: 24,
   },
   cancelBtn: {
@@ -699,7 +880,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#74c69d',
   },
   confirmText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     color: '#fff',
   },
