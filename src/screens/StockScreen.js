@@ -117,6 +117,15 @@ export default function StockScreen() {
   const saveWastage = async () => {
     const qty = parseFloat(wasteQty);
     if (!qty || qty <= 0) { Alert.alert('పరిమాణం చేర్చండి', 'వేస్ట్ పరిమాణం నమోదు చేయండి.'); return; }
+    // Check wastage does not exceed remaining stock
+    const row = rows.find((r) => r.id === wasteModal?.veg_id);
+    if (row && qty > row.remaining) {
+      Alert.alert(
+        'స్టాక్ సరిపోదు',
+        `మిగిలిన స్టాక్: ${row.remaining.toFixed(1)} ${UNIT_TE[row.unit] ?? row.unit}\nవేస్ట్ పరిమాణం తక్కువగా నమోదు చేయండి.`
+      );
+      return;
+    }
     setSavingWaste(true);
     try {
       await addDoc(collection(db, 'stock_log'), {
@@ -372,10 +381,10 @@ const styles = StyleSheet.create({
   detailLabel: { fontSize: 10, color: '#888', marginTop: 2 },
 
   actionRow:   { flexDirection: 'row', gap: 8 },
-  carryBtn:    { flex: 1, backgroundColor: '#e8f5ec', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
-  carryBtnText: { fontSize: 12, fontWeight: '700', color: '#2d6a4f' },
-  wasteBtn:    { flex: 1, backgroundColor: '#fdecea', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
-  wasteBtnText: { fontSize: 12, fontWeight: '700', color: '#c0392b' },
+  carryBtn:    { flex: 1, backgroundColor: '#e8f5ec', borderRadius: 8, paddingVertical: 14, alignItems: 'center', minHeight: 48, justifyContent: 'center' },
+  carryBtnText: { fontSize: 13, fontWeight: '700', color: '#2d6a4f' },
+  wasteBtn:    { flex: 1, backgroundColor: '#fdecea', borderRadius: 8, paddingVertical: 14, alignItems: 'center', minHeight: 48, justifyContent: 'center' },
+  wasteBtnText: { fontSize: 13, fontWeight: '700', color: '#c0392b' },
 
   statusBadge:        { marginTop: 8, backgroundColor: '#fdecea', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' },
   statusBadgeTextOut: { fontSize: 11, fontWeight: '700', color: '#c0392b' },

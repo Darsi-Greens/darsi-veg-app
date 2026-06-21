@@ -1,5 +1,50 @@
 # Darsi Greens — Test Cases
 
+> **Last audit:** 2026-06-21 — Pre-launch audit completed. All critical bugs fixed. See LAUNCH-CHECKLIST.md for full results.
+
+---
+
+## 6. Pre-Launch Audit Regression Results
+
+### Bugs confirmed fixed
+
+| ID | Bug | Fix |
+|----|-----|-----|
+| B1 | `adjustCount` created new daily_summary doc every tap | `setDoc` with merge:true |
+| B2 | Credit tab always empty (orderBy index missing) | Removed orderBy, sort client-side |
+| B3 | Orders never loaded (orderBy index crash in Promise.all) | Split queries, client-sort |
+| B4 | Orders couldn't be saved (vendor always null) | Free-text TextInput |
+| B5 | Veg picker invisible on Android | Modal moved inside parent Modal |
+| B6 | Wastage could exceed remaining stock | qty > remaining check added |
+| B7 | Stock action buttons too small for parents (~28px) | Raised to minHeight:48 |
+
+### TC-AUDIT-01: Customer count persists correctly
+1. Open Analytics → ఈరోజు tab → tap "+" customer count 3 times
+2. Navigate away and come back
+3. **Expected:** Count shows 3 (NOT 0); Firestore `daily_summary/{today}` has `customer_count: 3`
+4. **Expected:** Only ONE document for today (not 3 new docs)
+
+### TC-AUDIT-02: Credit tab loads correctly
+1. Record a sale with "అప్పు / Credit" payment
+2. Navigate to నివేదిక → క్రెడిట్ tab
+3. **Expected:** Sale appears in list (previously broken due to missing Firestore index)
+4. Tap "✓ అందింది" → **Expected:** Sale disappears from list
+
+### TC-AUDIT-03: Wastage cannot exceed remaining stock
+1. Go to స్టాక్ tab → tap "🗑 వేస్ట్" on Tomato (e.g. 10 kg remaining)
+2. Enter 15 kg (more than remaining) → tap సేవ్
+3. **Expected:** Alert "స్టాక్ సరిపోదు — మిగిలిన స్టాక్: 10.0 కేజీ"
+4. Enter 8 kg → tap సేవ్ → **Expected:** saved, remaining = 2 kg
+
+### TC-AUDIT-04: Firestore rules reject invalid data
+Using Firestore REST API or Firebase console:
+- Write to `sales` with `quantity: -1` → **Expected:** rejected
+- Write to `sales` with `payment_mode: 'barter'` → **Expected:** rejected
+- Write to `vegetables` → **Expected:** rejected (read-only)
+- Write to `vendor_orders` with empty `vendor_name` → **Expected:** rejected
+
+---
+
 ## 1. E2E Happy Path (Full Day Flow)
 
 ### TC-E2E-01: Complete morning workflow

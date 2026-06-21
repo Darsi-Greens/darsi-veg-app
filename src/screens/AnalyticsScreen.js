@@ -5,8 +5,8 @@ import {
   Platform, RefreshControl, FlatList,
 } from 'react-native';
 import {
-  collection, addDoc, updateDoc, getDocs, doc,
-  serverTimestamp, query, where, orderBy,
+  collection, addDoc, updateDoc, setDoc, getDocs, doc,
+  serverTimestamp, query, where,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
@@ -191,12 +191,16 @@ export default function AnalyticsScreen() {
 
   const loadCredit = useCallback(async () => {
     try {
+      // No orderBy — avoids requiring a composite Firestore index; sort client-side
       const snap = await getDocs(query(
         collection(db, 'sales'),
         where('payment_mode', '==', 'credit'),
-        orderBy('created_at', 'desc'),
       ));
-      setCreditSales(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((s) => !s.credit_paid));
+      const unpaid = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((s) => !s.credit_paid)
+        .sort((a, b) => (b.created_at?.toMillis?.() ?? 0) - (a.created_at?.toMillis?.() ?? 0));
+      setCreditSales(unpaid);
     } catch (e) {
       console.warn('Credit load error:', e);
     }
@@ -218,11 +222,12 @@ export default function AnalyticsScreen() {
     const newCount = Math.max(0, customerCount + delta);
     setCustomerCount(newCount);
     try {
-      await addDoc(collection(db, 'daily_summary'), {
+      // Use setDoc with today's date as ID so we update (not append) the summary
+      await setDoc(doc(db, 'daily_summary', todayStr()), {
         summary_date:   todayStr(),
         customer_count: newCount,
         updated_at:     serverTimestamp(),
-      });
+      }, { merge: true });
     } catch { /* offline ok */ }
   };
 
