@@ -70,7 +70,10 @@ module.exports = {
     userInterfaceStyle: 'light',
     assetBundlePatterns: ['**/*'],
 
-    extra: { appEnv: APP_ENV },
+    extra: {
+      appEnv: APP_ENV,
+      eas: { projectId: '86bdbe86-aa66-4041-b332-f5f3b4c1f7ce' },
+    },
 
     ios: {
       supportsTablet: true,
