@@ -65,6 +65,7 @@ module.exports = {
   expo: {
     name:        cfg.name,
     slug:        cfg.slug,
+    owner:       'nrbvegetables-darsi',
     version:     `1.0.0${cfg.versionSuffix}`,
     orientation: 'portrait',
     userInterfaceStyle: 'light',
