@@ -12,18 +12,18 @@ import { db } from '../firebase/config';
 const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
 
 const DEFAULT_VEGETABLES = [
-  { id: 'tomato',     name_te: 'టమాటా',       name_en: 'Tomato',       emoji: '🍅', unit: 'kg' },
-  { id: 'onion',      name_te: 'ఉల్లిపాయ',    name_en: 'Onion',        emoji: '🧅', unit: 'kg' },
-  { id: 'potato',     name_te: 'బంగాళాదుంప',  name_en: 'Potato',       emoji: '🥔', unit: 'kg' },
-  { id: 'brinjal',    name_te: 'వంకాయ',       name_en: 'Brinjal',      emoji: '🍆', unit: 'kg' },
-  { id: 'ladyfinger', name_te: 'బెండకాయ',     name_en: 'Lady Finger',  emoji: '🫛', unit: 'kg' },
-  { id: 'beans',      name_te: 'చిక్కుడు',    name_en: 'Beans',        emoji: '🫘', unit: 'kg' },
-  { id: 'carrot',     name_te: 'క్యారెట్',    name_en: 'Carrot',       emoji: '🥕', unit: 'kg' },
-  { id: 'cabbage',    name_te: 'క్యాబేజీ',    name_en: 'Cabbage',      emoji: '🥬', unit: 'kg' },
-  { id: 'capsicum',   name_te: 'క్యాప్సికం',  name_en: 'Capsicum',     emoji: '🫑', unit: 'kg' },
-  { id: 'cucumber',   name_te: 'దోసకాయ',      name_en: 'Cucumber',     emoji: '🥒', unit: 'kg' },
-  { id: 'spinach',    name_te: 'పాలకూర',      name_en: 'Spinach',      emoji: '🥬', unit: 'bundle' },
-  { id: 'coriander',  name_te: 'కొత్తిమీర',   name_en: 'Coriander',    emoji: '🌿', unit: 'bundle' },
+  { id: 'tomato',       name_te: 'టమాటా',        name_en: 'Tomato',        emoji: '🍅', unit: 'kg'     },
+  { id: 'onion',        name_te: 'ఉల్లిపాయ',     name_en: 'Onion',         emoji: '🧅', unit: 'kg'     },
+  { id: 'potato',       name_te: 'బంగాళాదుంప',   name_en: 'Potato',        emoji: '🥔', unit: 'kg'     },
+  { id: 'brinjal',      name_te: 'వంకాయ',         name_en: 'Brinjal',       emoji: '🍆', unit: 'kg'     },
+  { id: 'ladyfinger',   name_te: 'బెండకాయ',       name_en: 'Lady Finger',   emoji: '🫛', unit: 'kg'     },
+  { id: 'beans',        name_te: 'చిక్కుడు',      name_en: 'Beans',         emoji: '🫘', unit: 'kg'     },
+  { id: 'carrot',       name_te: 'క్యారెట్',       name_en: 'Carrot',        emoji: '🥕', unit: 'kg'     },
+  { id: 'cabbage',      name_te: 'క్యాబేజీ',       name_en: 'Cabbage',       emoji: '🥬', unit: 'kg'     },
+  { id: 'capsicum',     name_te: 'క్యాప్సికం',    name_en: 'Capsicum',      emoji: '🫑', unit: 'kg'     },
+  { id: 'cucumber',     name_te: 'దోసకాయ',        name_en: 'Cucumber',      emoji: '🥒', unit: 'kg'     },
+  { id: 'spinach',      name_te: 'పాలకూర',         name_en: 'Spinach',       emoji: '🥬', unit: 'bundle' },
+  { id: 'coriander',    name_te: 'కొత్తిమీర',      name_en: 'Coriander',     emoji: '🌿', unit: 'bundle' },
 ];
 
 function todayStr() {
@@ -34,7 +34,8 @@ function todayStr() {
 export default function SellingPricesScreen() {
   const [vegetables, setVegetables] = useState(DEFAULT_VEGETABLES);
   const [sellPrices, setSellPrices] = useState({});
-  const [buyPrices,  setBuyPrices]  = useState({}); // from today's received orders
+  const [buyPrices,  setBuyPrices]  = useState({});
+  const [editMode,   setEditMode]   = useState({}); // { veg_id: true } = row is in edit mode
   const [saving,     setSaving]     = useState(false);
   const [loading,    setLoading]    = useState(true);
   const [lastSaved,  setLastSaved]  = useState(null);
@@ -44,23 +45,22 @@ export default function SellingPricesScreen() {
   }, []);
 
   const loadAll = async () => {
+    let vegList = DEFAULT_VEGETABLES;
+    let loaded  = {};
+
     try {
-      // Load vegetable master list
       const vegSnap = await getDocs(collection(db, 'vegetables'));
       if (vegSnap.docs.length > 0) {
-        setVegetables(
-          vegSnap.docs
-            .map((d) => ({ id: d.id, ...d.data() }))
-            .filter((v) => v.active !== false)
-            .sort((a, b) => (a.name_en ?? '').localeCompare(b.name_en ?? ''))
-        );
+        vegList = vegSnap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((v) => v.active !== false)
+          .sort((a, b) => (a.name_en ?? '').localeCompare(b.name_en ?? ''));
+        setVegetables(vegList);
       }
     } catch { /* use defaults */ }
 
     try {
-      // Load today's existing sell prices
       const priceSnap = await getDocs(collection(db, 'prices', todayStr(), 'vegetables'));
-      const loaded = {};
       priceSnap.forEach((d) => {
         const data = d.data();
         loaded[d.id] = String(data.sell_price ?? data.price ?? '');
@@ -68,8 +68,16 @@ export default function SellingPricesScreen() {
       setSellPrices(loaded);
     } catch { /* first run or offline */ }
 
+    // Default: view mode if price already saved today, edit mode if not
+    const initEdit = {};
+    vegList.forEach((v) => {
+      if (!loaded[v.id] || !parseFloat(loaded[v.id])) {
+        initEdit[v.id] = true;
+      }
+    });
+    setEditMode(initEdit);
+
     try {
-      // Load today's RECEIVED orders to show buy price hints
       const ordSnap = await getDocs(
         query(
           collection(db, 'vendor_orders'),
@@ -81,7 +89,6 @@ export default function SellingPricesScreen() {
       ordSnap.docs.forEach((d) => {
         (d.data().items || []).forEach((item) => {
           if (item.veg_id && item.buy_price) {
-            // Keep lowest buy price if multiple vendors
             if (!buyMap[item.veg_id] || item.buy_price < buyMap[item.veg_id]) {
               buyMap[item.veg_id] = item.buy_price;
             }
@@ -111,15 +118,15 @@ export default function SellingPricesScreen() {
             teluguName:  veg.name_te,
             englishName: veg.name_en,
             sell_price:  parseFloat(sellPrices[veg.id]) || 0,
-            price:       parseFloat(sellPrices[veg.id]) || 0, // keep for Sales screen compat
+            price:       parseFloat(sellPrices[veg.id]) || 0,
             unit:        veg.unit ?? 'kg',
             updatedAt:   serverTimestamp(),
           })
         )
       );
-      const now = new Date().toLocaleTimeString('te-IN', { hour: '2-digit', minute: '2-digit' });
-      setLastSaved(now);
-      Alert.alert('సేవ్ అయింది! ✓', `ఈరోజు అమ్మకం ధరలు సేవ్ అయ్యాయి.\nSelling prices saved for ${dateStr}.`);
+      setLastSaved(new Date().toLocaleTimeString('te-IN', { hour: '2-digit', minute: '2-digit' }));
+      setEditMode({}); // All rows go to view mode after save
+      Alert.alert('సేవ్ అయింది! ✓', `ఈరోజు అమ్మకం ధరలు సేవ్ అయ్యాయి.\nSelling prices saved for ${todayStr()}.`);
     } catch {
       Alert.alert('లోపం', 'సేవ్ విఫలమైంది. Connection check చేయండి.');
     } finally {
@@ -128,9 +135,10 @@ export default function SellingPricesScreen() {
   };
 
   const renderItem = ({ item }) => {
-    const buyPrice = buyPrices[item.id];
-    const sellVal  = sellPrices[item.id] ?? '';
-    const margin   = buyPrice && parseFloat(sellVal) ? parseFloat(sellVal) - buyPrice : null;
+    const buyPrice  = buyPrices[item.id];
+    const sellVal   = sellPrices[item.id] ?? '';
+    const margin    = buyPrice && parseFloat(sellVal) ? parseFloat(sellVal) - buyPrice : null;
+    const isEditing = editMode[item.id] === true;
 
     return (
       <View style={styles.row}>
@@ -144,19 +152,36 @@ export default function SellingPricesScreen() {
             </Text>
           ) : null}
         </View>
-        <View style={styles.priceCol}>
-          <Text style={styles.rupee}>₹</Text>
-          <TextInput
-            style={[styles.input, margin !== null && margin < 0 && styles.inputLoss]}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-            placeholderTextColor="#aaa"
-            value={sellVal}
-            onChangeText={(v) => handleChange(item.id, v)}
-            returnKeyType="next"
-          />
-          <Text style={styles.unit}>/{UNIT_TE[item.unit] ?? 'కేజీ'}</Text>
-        </View>
+
+        {isEditing ? (
+          // Edit mode — show TextInput
+          <View style={styles.priceCol}>
+            <Text style={styles.rupee}>₹</Text>
+            <TextInput
+              style={[styles.input, margin !== null && margin < 0 && styles.inputLoss]}
+              keyboardType="decimal-pad"
+              placeholder="0"
+              placeholderTextColor="#aaa"
+              value={sellVal}
+              onChangeText={(v) => handleChange(item.id, v)}
+              returnKeyType="next"
+            />
+            <Text style={styles.unit}>/{UNIT_TE[item.unit] ?? 'కేజీ'}</Text>
+          </View>
+        ) : (
+          // View mode — show price text + pencil edit button
+          <View style={styles.priceViewCol}>
+            <Text style={styles.priceViewText}>
+              ₹{sellVal || '0'}/{UNIT_TE[item.unit] ?? 'కేజీ'}
+            </Text>
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => setEditMode((prev) => ({ ...prev, [item.id]: true }))}
+            >
+              <Text style={styles.editBtnText}>✏️</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   };
@@ -238,12 +263,13 @@ const styles = StyleSheet.create({
     elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
     gap: 10,
   },
-  emoji: { fontSize: 26 },
-  nameCol: { flex: 1 },
+  emoji:       { fontSize: 26 },
+  nameCol:     { flex: 1 },
   teluguName:  { fontSize: 16, fontWeight: '600', color: '#1a472a' },
   englishName: { fontSize: 12, color: '#666', marginTop: 1 },
   buyHint:     { fontSize: 11, color: '#2d6a4f', marginTop: 3, fontWeight: '500' },
 
+  // Edit mode — TextInput
   priceCol: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   rupee:    { fontSize: 18, color: '#2d6a4f', fontWeight: '600' },
   input: {
@@ -254,6 +280,12 @@ const styles = StyleSheet.create({
   },
   inputLoss: { borderColor: '#e74c3c', color: '#e74c3c' },
   unit:      { fontSize: 12, color: '#555' },
+
+  // View mode — price text + pencil
+  priceViewCol:  { alignItems: 'flex-end', gap: 6 },
+  priceViewText: { fontSize: 17, fontWeight: '700', color: '#2d6a4f' },
+  editBtn:       { paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#f0fff4', borderRadius: 8, borderWidth: 1, borderColor: '#b7e4c7' },
+  editBtnText:   { fontSize: 16 },
 
   saveBtn:         { margin: 16, backgroundColor: '#2d6a4f', borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
   saveBtnDisabled: { backgroundColor: '#74c69d' },

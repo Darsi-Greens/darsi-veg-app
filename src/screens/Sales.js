@@ -309,7 +309,7 @@ export default function Sales() {
           <Text style={styles.cardNameTe} numberOfLines={1}>{item.name_te}</Text>
           <Text style={styles.cardNameEn} numberOfLines={1}>{item.name_en}</Text>
           <Text style={[styles.cardPrice, !sellPrice && styles.cardNoPrice]}>
-            {sellPrice ? `₹${sellPrice}/${unitLabel}` : 'ధర లేదు'}
+            {sellPrice ? `₹${sellPrice}/${unitLabel}` : 'ధర సెట్ చేయండి ⚠️'}
           </Text>
         </View>
       </TouchableOpacity>

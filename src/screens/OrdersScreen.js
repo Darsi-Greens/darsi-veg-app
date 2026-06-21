@@ -6,11 +6,34 @@ import {
 } from 'react-native';
 import {
   collection, addDoc, updateDoc, getDocs, doc,
-  serverTimestamp, query, where, orderBy,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
+
+const FALLBACK_VEGETABLES = [
+  { id: 'tomato',       name_te: 'టమాట',        name_en: 'Tomato',        emoji: '🍅', unit: 'kg'     },
+  { id: 'onion',        name_te: 'ఉల్లిపాయ',    name_en: 'Onion',         emoji: '🧅', unit: 'kg'     },
+  { id: 'potato',       name_te: 'బంగాళదుంప',   name_en: 'Potato',        emoji: '🥔', unit: 'kg'     },
+  { id: 'brinjal',      name_te: 'వంకాయ',        name_en: 'Brinjal',       emoji: '🍆', unit: 'kg'     },
+  { id: 'okra',         name_te: 'బెండకాయ',      name_en: 'Okra',          emoji: '🌿', unit: 'kg'     },
+  { id: 'bittergourd',  name_te: 'కాకరకాయ',      name_en: 'Bitter Gourd',  emoji: '🥒', unit: 'kg'     },
+  { id: 'ridgegourd',   name_te: 'బీరకాయ',       name_en: 'Ridge Gourd',   emoji: '🥒', unit: 'kg'     },
+  { id: 'bottlegourd',  name_te: 'సొరకాయ',       name_en: 'Bottle Gourd',  emoji: '🎃', unit: 'piece'  },
+  { id: 'snakegourd',   name_te: 'పొట్లకాయ',     name_en: 'Snake Gourd',   emoji: '🌿', unit: 'kg'     },
+  { id: 'cucumber',     name_te: 'దోసకాయ',       name_en: 'Cucumber',      emoji: '🥒', unit: 'kg'     },
+  { id: 'greenchilli',  name_te: 'పచ్చి మిర్చి', name_en: 'Green Chilli',  emoji: '🌶️', unit: 'kg'    },
+  { id: 'capsicum',     name_te: 'క్యాప్సికం',   name_en: 'Capsicum',      emoji: '🫑', unit: 'kg'     },
+  { id: 'carrot',       name_te: 'క్యారెట్',      name_en: 'Carrot',        emoji: '🥕', unit: 'kg'     },
+  { id: 'cauliflower',  name_te: 'కాలిఫ్లవర్',   name_en: 'Cauliflower',   emoji: '🥦', unit: 'piece'  },
+  { id: 'cabbage',      name_te: 'క్యాబేజీ',      name_en: 'Cabbage',       emoji: '🥬', unit: 'piece'  },
+  { id: 'spinach',      name_te: 'పాలకూర',        name_en: 'Spinach',       emoji: '🥬', unit: 'bundle' },
+  { id: 'fenugreek',    name_te: 'మెంతికూర',      name_en: 'Fenugreek',     emoji: '🌿', unit: 'bundle' },
+  { id: 'drumstick',    name_te: 'మునగకాయ',       name_en: 'Drumstick',     emoji: '🌿', unit: 'kg'     },
+  { id: 'rawbanana',    name_te: 'అరటికాయ',       name_en: 'Raw Banana',    emoji: '🍌', unit: 'dozen'  },
+  { id: 'clusterbeans', name_te: 'గోరుచిక్కుడు', name_en: 'Cluster Beans', emoji: '🫘', unit: 'kg'     },
+];
 
 function todayStr() {
   const d = new Date();
@@ -21,14 +44,12 @@ function fmtTime(ts) {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   const h = d.getHours(), m = d.getMinutes();
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  return `${String(h % 12 || 12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+  return `${String(h % 12 || 12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 }
 
 function fmtDate(dateStr) {
   if (!dateStr) return '';
-  const today = todayStr();
-  if (dateStr === today) return 'ఈరోజు';
+  if (dateStr === todayStr()) return 'ఈరోజు';
   const d = new Date(dateStr + 'T00:00:00');
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
@@ -36,46 +57,47 @@ function fmtDate(dateStr) {
 const newItem = () => ({ veg: null, qty: '', price: '', lineTotal: 0 });
 
 export default function OrdersScreen() {
-  const [orders,     setOrders]     = useState([]);
-  const [vendors,    setVendors]    = useState([]);
-  const [vegetables, setVegs]       = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [toggling,   setToggling]   = useState(null); // order id being toggled
-  const [showAdd,    setShowAdd]    = useState(false);
+  const [orders,         setOrders]        = useState([]);
+  const [vegetables,     setVegs]          = useState([]);
+  const [loading,        setLoading]       = useState(true);
+  const [toggling,       setToggling]      = useState(null);
+  const [showAdd,        setShowAdd]       = useState(false);
 
   // Add-order form state
-  const [formVendor,  setFormVendor]  = useState(null);
-  const [formItems,   setFormItems]   = useState([newItem()]);
-  const [saving,      setSaving]      = useState(false);
-  const [pickerIdx,   setPickerIdx]   = useState(null);
-  const [vegSearch,   setVegSearch]   = useState('');
-  const [vendorSearch, setVendorSearch] = useState('');
+  const [formVendorName, setFormVendorName] = useState('');
+  const [formItems,      setFormItems]      = useState([newItem()]);
+  const [saving,         setSaving]         = useState(false);
+  const [pickerIdx,      setPickerIdx]      = useState(null);
+  const [vegSearch,      setVegSearch]      = useState('');
 
   const loadAll = useCallback(async () => {
-    try {
-      const [vSnap, vegSnap, ordSnap] = await Promise.all([
-        getDocs(collection(db, 'vendors')),
-        getDocs(collection(db, 'vegetables')),
-        getDocs(query(
-          collection(db, 'vendor_orders'),
-          orderBy('placed_at', 'desc'),
-        )),
-      ]);
-      setVendors(vSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((v) => v.active !== false));
-      setVegs(vegSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((v) => v.active !== false).sort((a, b) => a.name_en.localeCompare(b.name_en)));
+    setLoading(true);
 
-      const today = todayStr();
-      const all = ordSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      // Show: all pending orders (any date) + today's received orders
-      const visible = all.filter(
-        (o) => o.status !== 'received' || o.order_date === today
-      );
-      setOrders(visible);
-    } catch (e) {
-      console.warn('OrdersScreen load error:', e);
-    } finally {
-      setLoading(false);
+    // Load vegetables — fall back to hardcoded list if Firestore empty or offline
+    try {
+      const snap = await getDocs(collection(db, 'vegetables'));
+      const list = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((v) => v.active !== false)
+        .sort((a, b) => a.name_en.localeCompare(b.name_en));
+      setVegs(list.length ? list : FALLBACK_VEGETABLES);
+    } catch {
+      setVegs(FALLBACK_VEGETABLES);
     }
+
+    // Load orders — no orderBy to avoid requiring a Firestore index; sort client-side
+    try {
+      const snap = await getDocs(collection(db, 'vendor_orders'));
+      const today = todayStr();
+      const all = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.placed_at?.toMillis?.() ?? 0) - (a.placed_at?.toMillis?.() ?? 0));
+      setOrders(all.filter((o) => o.status !== 'received' || o.order_date === today));
+    } catch {
+      /* offline — show empty */
+    }
+
+    setLoading(false);
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
@@ -91,9 +113,7 @@ export default function OrdersScreen() {
         received_at: newStatus === 'received' ? serverTimestamp() : null,
       });
       setOrders((prev) =>
-        prev.map((o) =>
-          o.id === order.id ? { ...o, status: newStatus } : o
-        )
+        prev.map((o) => o.id === order.id ? { ...o, status: newStatus } : o)
       );
     } catch {
       Alert.alert('లోపం', 'అప్‌డేట్ విఫలమైంది. Connection check చేయండి.');
@@ -129,14 +149,13 @@ export default function OrdersScreen() {
   const grandTotal = formItems.reduce((s, i) => s + i.lineTotal, 0);
 
   const resetForm = () => {
-    setFormVendor(null);
+    setFormVendorName('');
     setFormItems([newItem()]);
-    setVendorSearch('');
   };
 
   const handleSave = async () => {
-    if (!formVendor) {
-      Alert.alert('వెండర్ లేదు', 'సరఫరాదారుని ఎంచుకోండి.');
+    if (!formVendorName.trim()) {
+      Alert.alert('వెండర్ లేదు', 'సరఫరాదారుడి పేరు నమోదు చేయండి.');
       return;
     }
     const valid = formItems.filter((i) => i.veg && parseFloat(i.qty) > 0);
@@ -147,8 +166,8 @@ export default function OrdersScreen() {
     setSaving(true);
     try {
       const docRef = await addDoc(collection(db, 'vendor_orders'), {
-        vendor_id:      formVendor.id,
-        vendor_name:    formVendor.name,
+        vendor_id:      '',
+        vendor_name:    formVendorName.trim(),
         order_date:     todayStr(),
         items: valid.map((i) => ({
           veg_id:      i.veg.id,
@@ -167,13 +186,18 @@ export default function OrdersScreen() {
         created_at:     serverTimestamp(),
       });
       setOrders((prev) => [{
-        id:          docRef.id,
-        vendor_name: formVendor.name,
-        order_date:  todayStr(),
-        items:       valid.map((i) => ({ veg_name_te: i.veg.name_te, quantity: parseFloat(i.qty), unit: i.veg.unit ?? 'kg', buy_price: parseFloat(i.price) || 0 })),
+        id:           docRef.id,
+        vendor_name:  formVendorName.trim(),
+        order_date:   todayStr(),
+        items: valid.map((i) => ({
+          veg_name_te: i.veg.name_te,
+          quantity:    parseFloat(i.qty),
+          unit:        i.veg.unit ?? 'kg',
+          buy_price:   parseFloat(i.price) || 0,
+        })),
         total_amount: parseFloat(grandTotal.toFixed(2)),
-        status:      'placed',
-        placed_at:   null,
+        status:       'placed',
+        placed_at:    null,
       }, ...prev]);
       setShowAdd(false);
       resetForm();
@@ -189,15 +213,17 @@ export default function OrdersScreen() {
   const pending  = orders.filter((o) => o.status !== 'received');
   const received = orders.filter((o) => o.status === 'received');
 
-  const filteredVegs    = vegetables.filter((v) => !vegSearch.trim() || v.name_te.includes(vegSearch) || v.name_en.toLowerCase().includes(vegSearch.toLowerCase()));
-  const filteredVendors = vendors.filter((v) => !vendorSearch.trim() || v.name.toLowerCase().includes(vendorSearch.toLowerCase()));
+  const filteredVegs = vegetables.filter((v) =>
+    !vegSearch.trim() ||
+    v.name_te.includes(vegSearch) ||
+    v.name_en.toLowerCase().includes(vegSearch.toLowerCase())
+  );
 
   const renderOrder = (order) => {
     const isReceived = order.status === 'received';
     const isToggling = toggling === order.id;
     return (
       <View key={order.id} style={[styles.orderCard, isReceived && styles.orderCardReceived]}>
-        {/* Header row */}
         <View style={styles.orderHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.orderVendor}>{order.vendor_name}</Text>
@@ -226,7 +252,6 @@ export default function OrdersScreen() {
           </View>
         </View>
 
-        {/* Items */}
         {(order.items || []).map((item, i) => (
           <View key={i} style={styles.itemRow}>
             <Text style={styles.itemName}>{item.veg_name_te}</Text>
@@ -254,7 +279,6 @@ export default function OrdersScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>ఆర్డర్లు</Text>
@@ -266,7 +290,6 @@ export default function OrdersScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Pending section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>రాని ఆర్డర్లు / Pending</Text>
           <View style={[styles.badge, { backgroundColor: '#fff3cd' }]}>
@@ -279,7 +302,6 @@ export default function OrdersScreen() {
           pending.map(renderOrder)
         )}
 
-        {/* Received section */}
         <View style={[styles.sectionHeader, { marginTop: 24 }]}>
           <Text style={styles.sectionTitle}>అందిన ఆర్డర్లు / Received Today</Text>
           <View style={[styles.badge, { backgroundColor: '#d1e7dd' }]}>
@@ -287,50 +309,44 @@ export default function OrdersScreen() {
           </View>
         </View>
         {received.length === 0 ? (
-          <Text style={styles.emptyHint}>ఇంకా అందలేదు\nNone received yet today</Text>
+          <Text style={styles.emptyHint}>ఇంకా అందలేదు{'\n'}None received yet today</Text>
         ) : (
           received.map(renderOrder)
         )}
       </ScrollView>
 
       {/* ── Add Order Modal ── */}
-      <Modal visible={showAdd} animationType="slide" onRequestClose={() => { setShowAdd(false); resetForm(); }}>
+      <Modal
+        visible={showAdd}
+        animationType="slide"
+        onRequestClose={() => { setShowAdd(false); resetForm(); }}
+      >
         <SafeAreaView style={styles.container}>
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
               <Text style={styles.headerTitle}>కొత్త ఆర్డర్</Text>
               <Text style={styles.headerSub}>New Order</Text>
             </View>
-            <TouchableOpacity onPress={() => { setShowAdd(false); resetForm(); }} style={styles.closeBtn}>
+            <TouchableOpacity
+              onPress={() => { setShowAdd(false); resetForm(); }}
+              style={styles.closeBtn}
+            >
               <Text style={styles.closeBtnText}>✕</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            {/* Vendor picker */}
+            {/* Vendor — free text input, no Firestore lookup required */}
             <Text style={styles.label}>సరఫరాదారుడు / Vendor</Text>
             <TextInput
-              style={styles.searchInput}
-              placeholder="🔍 వెండర్ వెతకండి..."
+              style={styles.vendorInput}
+              placeholder="వెండర్ పేరు టైప్ చేయండి (ఉదా: రాజు వెజ్)"
               placeholderTextColor="#888"
-              value={vendorSearch}
-              onChangeText={setVendorSearch}
+              value={formVendorName}
+              onChangeText={setFormVendorName}
+              returnKeyType="next"
+              autoCapitalize="words"
             />
-            {filteredVendors.map((v) => (
-              <TouchableOpacity
-                key={v.id}
-                style={[styles.vendorCard, formVendor?.id === v.id && styles.vendorCardActive]}
-                onPress={() => setFormVendor(v)}
-              >
-                <View style={[styles.radio, formVendor?.id === v.id && styles.radioActive]}>
-                  {formVendor?.id === v.id && <View style={styles.radioDot} />}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.vendorName, formVendor?.id === v.id && { color: '#2d6a4f' }]}>{v.name}</Text>
-                  <Text style={styles.vendorArea}>{v.area}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
 
             {/* Items */}
             <Text style={[styles.label, { marginTop: 20 }]}>కూరగాయలు / Vegetables</Text>
@@ -340,34 +356,48 @@ export default function OrdersScreen() {
                   style={[styles.vegPickBtn, item.veg && styles.vegPickBtnFilled]}
                   onPress={() => setPickerIdx(idx)}
                 >
-                  <Text style={[styles.vegPickText, item.veg && styles.vegPickTextFilled]} numberOfLines={1}>
-                    {item.veg ? `${item.veg.emoji ?? '🥬'}  ${item.veg.name_te}  /  ${item.veg.name_en}` : '+ కూరగాయ ఎంచుకోండి'}
+                  <Text
+                    style={[styles.vegPickText, item.veg && styles.vegPickTextFilled]}
+                    numberOfLines={1}
+                  >
+                    {item.veg
+                      ? `${item.veg.emoji ?? '🥬'}  ${item.veg.name_te}  /  ${item.veg.name_en}`
+                      : '+ కూరగాయ ఎంచుకోండి'}
                   </Text>
                 </TouchableOpacity>
+
                 <View style={styles.inputRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.inputLabel}>పరిమాణం</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <TextInput
                         style={[styles.numInput, { flex: 1 }]}
-                        keyboardType="decimal-pad"
+                        keyboardType="numeric"
                         placeholder="0"
                         placeholderTextColor="#bbb"
                         value={item.qty}
-                        onChangeText={(v) => /^\d*\.?\d*$/.test(v) && updateField(idx, 'qty', v)}
+                        onChangeText={(v) => {
+                          const clean = v.replace(',', '.');
+                          if (/^\d*\.?\d*$/.test(clean)) updateField(idx, 'qty', clean);
+                        }}
                       />
-                      <Text style={{ fontSize: 11, color: '#2d6a4f', fontWeight: '700' }}>{UNIT_TE[item.veg?.unit] ?? 'కేజీ'}</Text>
+                      <Text style={{ fontSize: 11, color: '#2d6a4f', fontWeight: '700' }}>
+                        {UNIT_TE[item.veg?.unit] ?? 'కేజీ'}
+                      </Text>
                     </View>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.inputLabel}>కొనుగోలు ₹</Text>
                     <TextInput
                       style={styles.numInput}
-                      keyboardType="decimal-pad"
+                      keyboardType="numeric"
                       placeholder="0.00"
                       placeholderTextColor="#bbb"
                       value={item.price}
-                      onChangeText={(v) => /^\d*\.?\d*$/.test(v) && updateField(idx, 'price', v)}
+                      onChangeText={(v) => {
+                        const clean = v.replace(',', '.');
+                        if (/^\d*\.?\d*$/.test(clean)) updateField(idx, 'price', clean);
+                      }}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -375,61 +405,85 @@ export default function OrdersScreen() {
                     <Text style={styles.lineTotal}>₹{item.lineTotal.toFixed(0)}</Text>
                   </View>
                 </View>
-                <TouchableOpacity onPress={() => setFormItems((p) => p.length === 1 ? [newItem()] : p.filter((_, i) => i !== idx))} style={{ alignSelf: 'flex-end', marginTop: 8 }}>
+
+                <TouchableOpacity
+                  onPress={() => setFormItems((p) =>
+                    p.length === 1 ? [newItem()] : p.filter((_, i) => i !== idx)
+                  )}
+                  style={{ alignSelf: 'flex-end', marginTop: 8 }}
+                >
                   <Text style={{ fontSize: 12, color: '#e74c3c', fontWeight: '600' }}>✕ తొలగించు</Text>
                 </TouchableOpacity>
               </View>
             ))}
 
-            <TouchableOpacity style={styles.addItemBtn} onPress={() => setFormItems((p) => [...p, newItem()])}>
+            <TouchableOpacity
+              style={styles.addItemBtn}
+              onPress={() => setFormItems((p) => [...p, newItem()])}
+            >
               <Text style={styles.addItemText}>+ వేరొక కూరగాయ</Text>
             </TouchableOpacity>
 
-            {/* Grand total */}
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandTotalLabel}>మొత్తం బిల్లు</Text>
               <Text style={styles.grandTotalValue}>₹{grandTotal.toFixed(2)}</Text>
             </View>
 
-            <TouchableOpacity style={[styles.saveBtn, saving && { backgroundColor: '#74c69d' }]} onPress={handleSave} disabled={saving}>
-              <Text style={styles.saveBtnText}>{saving ? 'సేవ్ అవుతోంది...' : '✓ ఆర్డర్ పెట్టండి / Place Order'}</Text>
+            <TouchableOpacity
+              style={[styles.saveBtn, saving && { backgroundColor: '#74c69d' }]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              <Text style={styles.saveBtnText}>
+                {saving ? 'సేవ్ అవుతోంది...' : '✓ ఆర్డర్ పెట్టండి / Place Order'}
+              </Text>
             </TouchableOpacity>
           </ScrollView>
-        </SafeAreaView>
-      </Modal>
 
-      {/* ── Veg picker sheet ── */}
-      <Modal visible={pickerIdx !== null} transparent animationType="slide" onRequestClose={() => { setPickerIdx(null); setVegSearch(''); }}>
-        <View style={styles.overlay}>
-          <View style={styles.sheet}>
-            <View style={styles.handle} />
-            <Text style={styles.sheetTitle}>కూరగాయ ఎంచుకోండి</Text>
-            <TextInput
-              style={styles.sheetSearch}
-              placeholder="🔍 వెతకండి..."
-              placeholderTextColor="#888"
-              value={vegSearch}
-              onChangeText={setVegSearch}
-              clearButtonMode="while-editing"
-            />
-            <FlatList
-              data={filteredVegs}
-              keyExtractor={(v) => v.id}
-              keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => (
-                <TouchableOpacity style={styles.vegOption} onPress={() => pickVeg(item)}>
-                  <Text style={{ fontSize: 28 }}>{item.emoji ?? '🥬'}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.vegOptionTe}>{item.name_te}</Text>
-                    <Text style={styles.vegOptionEn}>{item.name_en}</Text>
-                  </View>
-                  <Text style={{ fontSize: 12, color: '#2d6a4f', fontWeight: '700' }}>{UNIT_TE[item.unit] ?? item.unit}</Text>
-                </TouchableOpacity>
-              )}
-              ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: '#f0f0f0', marginLeft: 62 }} />}
-            />
-          </View>
-        </View>
+          {/* ── Veg picker sheet — nested INSIDE Add Order Modal so Android renders it correctly ── */}
+          <Modal
+            visible={pickerIdx !== null}
+            transparent
+            animationType="slide"
+            onRequestClose={() => { setPickerIdx(null); setVegSearch(''); }}
+          >
+            <View style={styles.overlay}>
+              <View style={styles.sheet}>
+                <View style={styles.handle} />
+                <Text style={styles.sheetTitle}>కూరగాయ ఎంచుకోండి</Text>
+                <TextInput
+                  style={styles.sheetSearch}
+                  placeholder="🔍 వెతకండి..."
+                  placeholderTextColor="#888"
+                  value={vegSearch}
+                  onChangeText={setVegSearch}
+                  clearButtonMode="while-editing"
+                  autoFocus
+                />
+                <FlatList
+                  data={filteredVegs}
+                  keyExtractor={(v) => v.id}
+                  keyboardShouldPersistTaps="handled"
+                  renderItem={({ item }) => (
+                    <TouchableOpacity style={styles.vegOption} onPress={() => pickVeg(item)}>
+                      <Text style={{ fontSize: 28 }}>{item.emoji ?? '🥬'}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.vegOptionTe}>{item.name_te}</Text>
+                        <Text style={styles.vegOptionEn}>{item.name_en}</Text>
+                      </View>
+                      <Text style={{ fontSize: 12, color: '#2d6a4f', fontWeight: '700' }}>
+                        {UNIT_TE[item.unit] ?? item.unit}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  ItemSeparatorComponent={() => (
+                    <View style={{ height: 1, backgroundColor: '#f0f0f0', marginLeft: 62 }} />
+                  )}
+                />
+              </View>
+            </View>
+          </Modal>
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
@@ -446,9 +500,9 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 26, fontWeight: 'bold', color: '#fff' },
   headerSub:   { fontSize: 13, color: '#a8d5b5', marginTop: 2 },
 
-  addBtn:     { backgroundColor: '#52b788', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  addBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  closeBtn:   { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  addBtn:       { backgroundColor: '#52b788', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  addBtnText:   { fontSize: 14, fontWeight: '700', color: '#fff' },
+  closeBtn:     { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   closeBtnText: { fontSize: 16, color: '#fff', fontWeight: '700' },
 
   scroll: { padding: 16, paddingBottom: 48 },
@@ -458,7 +512,6 @@ const styles = StyleSheet.create({
   badge:         { borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 },
   badgeText:     { fontSize: 13, fontWeight: '700' },
 
-  // Order card
   orderCard: {
     backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 12,
     borderLeftWidth: 4, borderLeftColor: '#f6a623',
@@ -486,31 +539,21 @@ const styles = StyleSheet.create({
   orderTotal:  { fontSize: 15, fontWeight: '700', color: '#1a472a' },
 
   // Form
-  label:       { fontSize: 12, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  searchInput: {
-    backgroundColor: '#fff', borderRadius: 10, borderWidth: 1.5, borderColor: '#b7e4c7',
-    paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 10 : 8,
-    fontSize: 15, color: '#1a1a1a', marginBottom: 10,
+  label: { fontSize: 12, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+
+  vendorInput: {
+    backgroundColor: '#fff', borderRadius: 12, borderWidth: 2, borderColor: '#b7e4c7',
+    paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 14 : 12,
+    fontSize: 16, color: '#1a1a1a', marginBottom: 4,
   },
-  vendorCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 8,
-    borderWidth: 2, borderColor: '#e0f0e8',
-  },
-  vendorCardActive: { borderColor: '#2d6a4f', backgroundColor: '#f0fff4' },
-  radio:    { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#b7e4c7', alignItems: 'center', justifyContent: 'center' },
-  radioActive: { borderColor: '#2d6a4f' },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2d6a4f' },
-  vendorName: { fontSize: 16, fontWeight: '700', color: '#1a472a' },
-  vendorArea: { fontSize: 12, color: '#666', marginTop: 2 },
 
   itemCard: {
     backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10,
     elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
   },
-  vegPickBtn:       { borderWidth: 2, borderColor: '#b7e4c7', borderStyle: 'dashed', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 10, backgroundColor: '#f8fff8' },
-  vegPickBtnFilled: { borderStyle: 'solid', borderColor: '#2d6a4f', backgroundColor: '#e8f5ec' },
-  vegPickText:      { fontSize: 14, color: '#888' },
+  vegPickBtn:        { borderWidth: 2, borderColor: '#b7e4c7', borderStyle: 'dashed', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 10, backgroundColor: '#f8fff8' },
+  vegPickBtnFilled:  { borderStyle: 'solid', borderColor: '#2d6a4f', backgroundColor: '#e8f5ec' },
+  vegPickText:       { fontSize: 14, color: '#888' },
   vegPickTextFilled: { color: '#1a472a', fontWeight: '600' },
 
   inputRow:   { flexDirection: 'row', gap: 10, alignItems: 'flex-end' },
@@ -521,7 +564,7 @@ const styles = StyleSheet.create({
   addItemBtn:  { borderWidth: 2, borderColor: '#2d6a4f', borderStyle: 'dashed', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 16 },
   addItemText: { fontSize: 15, color: '#2d6a4f', fontWeight: '700' },
 
-  grandTotalRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#e8f5ec', borderRadius: 12, padding: 18, marginBottom: 16 },
+  grandTotalRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#e8f5ec', borderRadius: 12, padding: 18, marginBottom: 16 },
   grandTotalLabel: { fontSize: 16, fontWeight: '600', color: '#444' },
   grandTotalValue: { fontSize: 28, fontWeight: 'bold', color: '#1a472a' },
 
