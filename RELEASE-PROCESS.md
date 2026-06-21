@@ -2,207 +2,200 @@
 
 ## Environment Overview
 
-| Environment | Firebase Project | App Name | Android Package | Who |
-|------------|-----------------|----------|----------------|-----|
-| DEV | `darsi-veg-dev` | NRB Veg DEV 🔧 | `com.darsigreens.veg.dev` | Developer |
-| STAGING | `darsi-veg-staging` | NRB Veg QA 🧪 | `com.darsigreens.veg.staging` | Developer testing |
-| PROD | `darsi-veg-shop` | NRB Vegetables | `com.darsigreens.veg` | Parents |
+| | DEV | STG | PROD |
+|--|-----|-----|------|
+| Firebase project | `darsi-veg-dev` | `darsi-veg-staging` | `darsi-veg-shop` |
+| App name | NRB Veg DEV | NRB Veg BETA | NRB Vegetables |
+| Android package | `com.nrbveg.dev` | `com.nrbveg.staging` | `com.nrbveg.app` |
+| Banner | 🔧 DEV (red) | 🧪 BETA - Parents Testing (orange) | None |
+| Who uses | Developer only | Parents test new features | Parents daily use |
+| Data safe to delete? | Yes | Yes | **NEVER** |
 
-All three APKs can be installed on the same phone simultaneously — they have different package names.
+STG and PROD install side-by-side on the same phone because they have different package names.
 
 ---
 
 ## Version Naming
 
-| Environment | Version format | Example |
-|------------|---------------|---------|
+| Env | Format | Example |
+|-----|--------|---------|
 | DEV | `1.x.x-dev` | `1.2.0-dev` |
-| STAGING | `1.x.x-rc.1` | `1.2.0-rc.1` |
+| STG | `1.x.x-rc.1` | `1.2.0-rc.1` |
 | PROD | `1.x.x` | `1.2.0` |
 
-Update the base version in `app.config.js` line: `version: \`1.0.0\${VERSION_SUFFIX[APP_ENV]...}`.
+To bump version: edit the base `1.0.0` in `app.config.js` (line with `version: \`1.0.0\${cfg.versionSuffix}\``).
 
 ---
 
-## Step-by-Step Release Process
+## Release Flow (Step by Step)
 
-### Step 1 — Build feature in DEV
+### Step 1 — Build feature in DEV branch
 
 ```bash
-# Start the app connected to darsi-veg-dev Firebase
-npm run start:dev
+git checkout -b feature/your-feature-name
+npm run start:dev      # APP_ENV=development expo start
 ```
 
-- Write code, test on your phone or emulator
-- The DEV app shows an **orange banner** "🔧 DEV MODE"
-- Data goes to `darsi-veg-dev` Firestore — safe to delete/reset anytime
-- When feature works locally → proceed to Step 2
+- DEV app shows **red banner** "🔧 DEV"
+- All data goes to `darsi-veg-dev` Firestore — safe to mess with
+- When feature works: proceed to Step 2
 
 ---
 
-### Step 2 — Test in DEV locally
+### Step 2 — Test yourself in DEV
 
-Before moving to staging, verify:
+Before moving to STG:
 - [ ] Feature works end-to-end
-- [ ] No console errors or yellow warnings
-- [ ] Offline scenario: turn off WiFi → use feature → turn on WiFi → data syncs
-- [ ] Build export passes: `npx expo export -p android` → 0 errors
+- [ ] No console errors
+- [ ] Offline: disable WiFi → use feature → re-enable → data syncs
+- [ ] `npx expo export -p android` completes with 0 errors
 
 ---
 
-### Step 3 — Build staging APK
+### Step 3 — Merge to staging branch
+
+```bash
+git add .
+git commit -m "feat: your feature description"
+git checkout staging
+git merge feature/your-feature-name
+git push origin staging
+```
+
+---
+
+### Step 4 — Build STG APK
 
 ```bash
 npm run build:staging
 # equivalent: eas build -p android --profile staging
 ```
 
-EAS will:
-1. Set `APP_ENV=staging` (picks up `.env.staging` config)
-2. Build signed APK targeting `com.darsigreens.veg.staging`
-3. Give you a download link
+EAS builds the APK with `APP_ENV=staging` → connects to `darsi-veg-staging` Firestore.
 
-Download the APK. Install on your personal Android phone.
-
-> The staging APK shows an **amber banner** "🧪 QA - Ghost Testing"
+Download the APK link from EAS.
 
 ---
 
-### Step 4 — Run full test suite in staging
+### Step 5 — Send STG APK to parents for testing
 
-Install the staging APK on your phone. Go through **every test case** in `test-cases.md`:
-
-#### Mandatory checks
-- [ ] TC-E2E-01 through TC-E2E-05 (full day flow)
-- [ ] TC-ORD-01 through TC-ORD-09 (orders edge cases)
-- [ ] TC-PRC-01 through TC-PRC-05 (prices edge cases)
-- [ ] TC-SAL-01 through TC-SAL-07 (sales edge cases)
-- [ ] TC-OFF-01 through TC-OFF-05 (offline scenarios)
-- [ ] TC-AUDIT-01 through TC-AUDIT-04 (regression audit)
-
-#### What to watch for
-- Does the correct Firebase project receive the data? (check `darsi-veg-staging` Firestore)
-- Does the banner say "🧪 QA - Ghost Testing"?
-- Are all amounts in Telugu/Indian format?
-- Do big buttons work with fat thumbs?
-
-**If any test fails** → fix in DEV → rebuild staging → re-test. Do NOT proceed to production with a known bug.
+1. Send the STG APK via WhatsApp to parents
+2. Parents install it alongside their existing PROD app
+3. The BETA app shows **orange banner** "🧪 BETA - Parents Testing"
+4. Parents test the new feature in the BETA app
+5. Parents give feedback on WhatsApp
 
 ---
 
-### Step 5 — Build production APK
+### Step 6 — Fix any issues found in STG
 
-Only after **all** staging tests pass:
+```bash
+git checkout feature/your-feature-name
+# fix the issue
+git commit -m "fix: issue description"
+git checkout staging
+git merge feature/your-feature-name
+```
+
+Rebuild STG APK (Step 4) → send to parents again.
+
+Repeat until parents are happy.
+
+---
+
+### Step 7 — Merge to main branch
+
+```bash
+git checkout main
+git merge staging
+git push origin main
+```
+
+---
+
+### Step 8 — Build PROD APK
 
 ```bash
 npm run build:prod
 # equivalent: eas build -p android --profile production
 ```
 
-EAS will:
-1. Set `APP_ENV=production` (picks up `.env.production` config)
-2. Build signed APK targeting `com.darsigreens.veg`
-3. Give you a download link
-
-> The production APK has **no banner** — clean for parents.
+EAS builds the APK with `APP_ENV=production` → connects to `darsi-veg-shop` Firestore.
 
 ---
 
-### Step 6 — Send to parents
+### Step 9 — Send PROD APK to parents
 
-1. Download the production APK from EAS
+1. Download the PROD APK from EAS
 2. Send via WhatsApp to parents
-3. Parents install → tap to replace old version (same package name)
-4. Confirm they can log in and use the app
+3. Parents install — replaces their existing PROD app (same package `com.nrbveg.app`)
+4. No banner — clean UI
+5. This becomes their daily app
 
 ---
 
-### Step 7 — Monitor Firestore
+### Step 10 — Monitor Firestore (30 min)
 
-After sending to parents, watch `darsi-veg-shop` Firestore for 30 minutes:
+After parents install, watch `darsi-veg-shop` Firestore:
+- `sales` — sales appearing correctly?
+- `vendor_orders` — orders saving?
+- `daily_summary/{today}` — only ONE document? (`customer_count` updating, not creating duplicates)
+- `stock_log` — wastage entries saving?
 
-- Check `sales` collection — entries appearing correctly?
-- Check `vendor_orders` — orders saving?
-- Check `daily_summary` — customer count updating (not creating duplicate docs)?
-- Check `stock_log` — wastage entries saving?
-
-If something is broken → hotfix in DEV → go through Steps 1-6 again.
+If broken → hotfix in feature branch → Steps 2-9 again.
 
 ---
 
-## First-Time Setup Checklist
-
-Before you can use this release process, complete these one-time setup steps:
-
-### 1. Create Firebase projects
-Go to https://console.firebase.google.com and create:
-- [ ] `darsi-veg-dev` project (free Spark plan is fine)
-- [ ] `darsi-veg-staging` project (free Spark plan is fine)
-- [ ] `darsi-veg-shop` already exists (your live project)
-
-For each new project, enable:
-- Firestore Database (start in test mode, then apply `firestore.rules`)
-- Authentication (not needed yet, but good to enable for future)
-
-### 2. Fill env files
-Copy values from Firebase Console → Project Settings → Your apps → Web app:
+## Running Locally
 
 ```bash
-# Fill .env.development with darsi-veg-dev keys
-# Fill .env.staging with darsi-veg-staging keys
-# Fill .env.production with darsi-veg-shop keys (copy from your existing .env)
-```
+# Development (default)
+npm run start:dev          # red "🔧 DEV" banner
 
-### 3. Generate icons
-```bash
-npm run icons
-# Creates assets/ with 7 PNG files
-# Replace with proper branded icons before final release
-```
+# Staging
+npm run start:staging      # orange "🧪 BETA" banner
 
-### 4. Install EAS CLI
-```bash
-npm install -g eas-cli
-eas login    # log in with your Expo account
-eas build:configure   # links this project to EAS
-```
-
-### 5. Upload Firestore rules to each project
-```bash
-# For each Firebase project, run:
-firebase use darsi-veg-dev
-firebase deploy --only firestore:rules
-
-firebase use darsi-veg-staging
-firebase deploy --only firestore:rules
-
-firebase use darsi-veg-shop
-firebase deploy --only firestore:rules
+# Production (only for final pre-release check)
+npm run start:prod         # no banner
 ```
 
 ---
 
-## Hotfix Process (urgent prod bug)
+## Seeding Firestore
+
+When setting up a new environment or resetting test data:
+
+```bash
+cd ../darsi-veg-data
+
+# Seed DEV
+node seeds/seed-vegetables.js --env=dev
+node seeds/seed-vendors.js --env=dev
+
+# Seed STG
+node seeds/seed-vegetables.js --env=staging
+node seeds/seed-vendors.js --env=staging
+
+# Or use shortcuts:
+npm run seed:dev
+npm run seed:staging
+```
+
+To re-seed: delete the collection in Firebase Console first, then run seed again.
+
+---
+
+## Hotfix (urgent prod bug)
 
 For a critical bug affecting parents right now:
 
-1. Fix the bug in DEV
-2. **Skip staging build** — go straight to production APK
-3. Do a manual smoke test on the production APK on your phone (at least the affected flow)
-4. Send to parents
-5. Backfill: rebuild staging APK and run full test suite after parents are unblocked
+1. Fix in `main` branch directly (or a `hotfix/` branch)
+2. **Skip STG build** — go straight to `npm run build:prod`
+3. Manual smoke test on your own phone (at least the affected flow)
+4. Send PROD APK to parents immediately
+5. Backfill: merge fix back to `staging` and `feature` branches
 
-Document the reason for skipping staging in git commit message.
-
----
-
-## Rollback
-
-If a production APK is broken and you can't fix it fast:
-
-1. Find the previous production APK in EAS build history (`eas build:list`)
-2. Download and reinstall on parents' phones
-3. Fix the bug in DEV properly, then go through full release process
+Document why staging was skipped in commit message.
 
 ---
 
@@ -210,15 +203,36 @@ If a production APK is broken and you can't fix it fast:
 
 | File | Purpose |
 |------|---------|
-| `.env.development` | DEV Firebase keys (local only, not in git) |
-| `.env.staging` | Staging Firebase keys (local only, not in git) |
-| `.env.production` | Production Firebase keys (local only, not in git) |
-| `.env.*.example` | Templates for above — these ARE in git |
-| `app.config.js` | Dynamic Expo config — reads `APP_ENV` |
-| `eas.json` | EAS build profiles |
-| `scripts/generate-icons.js` | Creates placeholder icon PNGs |
-| `assets/icon-dev.png` | Orange icon for DEV APK |
-| `assets/icon-staging.png` | Amber icon for Staging APK |
-| `assets/icon.png` | Green icon for Production APK |
-| `test-cases.md` | Full test suite to run in staging |
-| `LAUNCH-CHECKLIST.md` | Pre-launch security + bug audit results |
+| `.env.development` | DEV Firebase keys — local only, not in git |
+| `.env.staging` | STG Firebase keys — local only, not in git |
+| `.env.production` | PROD Firebase keys — local only, not in git |
+| `.env.*.example` | Templates — committed to git, no real keys |
+| `app.config.js` | Dynamic Expo config — driven by `APP_ENV` |
+| `eas.json` | EAS build profiles (dev/staging/production) |
+| `scripts/generate-icons.js` | Creates placeholder colored PNGs |
+| `assets/icon-dev.png` | Red icon — DEV APK |
+| `assets/icon-staging.png` | Orange icon — STG APK |
+| `assets/icon.png` | Green icon — PROD APK |
+| `test-cases.md` | Full test suite to run before PROD build |
+| `LAUNCH-CHECKLIST.md` | Pre-launch security + bug audit |
+
+---
+
+## First-Time EAS Setup
+
+```bash
+npm install -g eas-cli
+eas login
+eas build:configure   # links project to EAS — run once
+```
+
+---
+
+## Branch Strategy
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Production-ready code — only merge from `staging` |
+| `staging` | Integration — merge feature branches here for parent testing |
+| `feature/*` | Individual features — branch off `main`, work here |
+| `hotfix/*` | Urgent prod fixes — branch off `main`, merge back to main + staging |

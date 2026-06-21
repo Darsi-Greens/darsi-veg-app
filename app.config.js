@@ -1,16 +1,16 @@
-// Dynamic Expo config — reads APP_ENV to configure per-environment name,
-// package ID, and icon. Load the right .env.* file before running expo:
-//   APP_ENV=development npx expo start
-//   APP_ENV=staging     npx expo start
-//   APP_ENV=production  npx expo start
+// Dynamic Expo config — reads APP_ENV to configure name, package ID, icon,
+// and version suffix per environment.
+//
+// Local dev:  APP_ENV=development npx expo start   (or npm run start:dev)
+// EAS build:  eas.json sets APP_ENV per profile automatically
 
 const path = require('path');
 const fs   = require('fs');
 
 const APP_ENV = process.env.APP_ENV ?? 'development';
 
-// Manually parse .env.{APP_ENV} so app.config.js picks up the right project ID
-// even when Expo hasn't loaded the dotenv file yet.
+// Load .env.{APP_ENV} so app.config.js picks up the right EXPO_PUBLIC_APP_NAME
+// before Expo has had a chance to load it.
 function loadEnvFile(filename) {
   const filepath = path.join(__dirname, filename);
   if (!fs.existsSync(filepath)) return;
@@ -30,48 +30,47 @@ const envConfig = {
   development: {
     name:           process.env.EXPO_PUBLIC_APP_NAME ?? 'NRB Veg DEV',
     slug:           'darsi-veg-app-dev',
-    androidPackage: 'com.darsigreens.veg.dev',
+    androidPackage: 'com.nrbveg.dev',
     icon:           './assets/icon-dev.png',
     adaptiveIcon:   './assets/adaptive-icon-dev.png',
-    adaptiveBg:     '#e65100',
+    adaptiveBg:     '#b71c1c',
+    versionSuffix:  '-dev',
+    versionCode:    3,
   },
   staging: {
-    name:           process.env.EXPO_PUBLIC_APP_NAME ?? 'NRB Veg QA',
+    name:           process.env.EXPO_PUBLIC_APP_NAME ?? 'NRB Veg BETA',
     slug:           'darsi-veg-app-staging',
-    androidPackage: 'com.darsigreens.veg.staging',
+    androidPackage: 'com.nrbveg.staging',
     icon:           './assets/icon-staging.png',
     adaptiveIcon:   './assets/adaptive-icon-staging.png',
-    adaptiveBg:     '#f57f17',
+    adaptiveBg:     '#e65100',
+    versionSuffix:  '-rc.1',
+    versionCode:    2,
   },
   production: {
     name:           process.env.EXPO_PUBLIC_APP_NAME ?? 'NRB Vegetables',
     slug:           'darsi-veg-app',
-    androidPackage: 'com.darsigreens.veg',
+    androidPackage: 'com.nrbveg.app',
     icon:           './assets/icon.png',
     adaptiveIcon:   './assets/adaptive-icon.png',
     adaptiveBg:     '#1a472a',
+    versionSuffix:  '',
+    versionCode:    1,
   },
 };
 
 const cfg = envConfig[APP_ENV] ?? envConfig.development;
 
-// Version suffix per environment
-const VERSION_SUFFIX = { development: '-dev', staging: '-rc.1', production: '' };
-const versionCode = APP_ENV === 'production' ? 1 : APP_ENV === 'staging' ? 2 : 3;
-
 module.exports = {
   expo: {
     name:        cfg.name,
     slug:        cfg.slug,
-    version:     `1.0.0${VERSION_SUFFIX[APP_ENV] ?? '-dev'}`,
+    version:     `1.0.0${cfg.versionSuffix}`,
     orientation: 'portrait',
     userInterfaceStyle: 'light',
     assetBundlePatterns: ['**/*'],
 
-    // Extra env metadata accessible via expo-constants
-    extra: {
-      appEnv: APP_ENV,
-    },
+    extra: { appEnv: APP_ENV },
 
     ios: {
       supportsTablet: true,
@@ -79,8 +78,8 @@ module.exports = {
     },
 
     android: {
-      package:         cfg.androidPackage,
-      versionCode,
+      package:      cfg.androidPackage,
+      versionCode:  cfg.versionCode,
       adaptiveIcon: {
         foregroundImage: cfg.adaptiveIcon,
         backgroundColor: cfg.adaptiveBg,

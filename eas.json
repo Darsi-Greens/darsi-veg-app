@@ -4,13 +4,13 @@
   },
   "build": {
     "development": {
-      "developmentClient": true,
       "distribution": "internal",
       "env": {
         "APP_ENV": "development"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "packageName": "com.nrbveg.dev"
       }
     },
     "staging": {
@@ -19,16 +19,18 @@
         "APP_ENV": "staging"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "packageName": "com.nrbveg.staging"
       }
     },
     "production": {
-      "distribution": "store",
+      "distribution": "internal",
       "env": {
         "APP_ENV": "production"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "packageName": "com.nrbveg.app"
       }
     }
   },

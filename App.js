@@ -11,10 +11,11 @@ const Stack = createNativeStackNavigator();
 
 const APP_ENV = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
 
+// DEV = red, STG = orange, PROD = no banner
 const ENV_BANNER = {
-  development: { text: '🔧 DEV MODE', bg: '#e65100' },
-  staging:     { text: '🧪 QA - Ghost Testing', bg: '#f57f17' },
-  production:  null, // no banner — clean UI for parents
+  development: { text: '🔧 DEV', bg: '#c62828' },
+  staging:     { text: '🧪 BETA - Parents Testing', bg: '#e65100' },
+  production:  null,
 };
 
 function EnvBanner() {
