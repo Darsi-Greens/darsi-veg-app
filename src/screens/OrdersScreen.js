@@ -4,6 +4,7 @@ import {
   SafeAreaView, Alert, Modal, TextInput, ScrollView,
   ActivityIndicator, Switch,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   collection, addDoc, updateDoc, getDocs, doc,
   serverTimestamp,
@@ -118,6 +119,26 @@ export default function OrdersScreen() {
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Reload vendors from cache whenever this screen gets focus
+  // (picks up changes made in AdminPanel without a full reload)
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const cached = await LocalDB.get('cache_vendors');
+        if (cached) setVendors(cached.filter((v) => v.active !== false));
+        // Background Firestore refresh — updates cache for next focus too
+        try {
+          const snap = await getDocs(collection(db, 'vendors'));
+          const list = snap.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter((v) => v.active !== false);
+          setVendors(list);
+          await LocalDB.set('cache_vendors', snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        } catch {}
+      })();
+    }, [])
+  );
 
   // ── Toggle received — local-first, no revert ─────────────────────────────────
 

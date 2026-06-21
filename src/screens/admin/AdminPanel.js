@@ -15,6 +15,16 @@ const REGULAR_PIN_KEY = 'pin_regular';
 const APP_ENV = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
 const UNITS = ['kg', 'piece', 'bundle', 'dozen'];
 
+// Andhra Pradesh locations for area suggestions
+const AP_LOCATIONS = [
+  'Darsi', 'Darsi Market', 'Ongole', 'Kandukur', 'Chirala', 'Markapur',
+  'Giddalur', 'Podili', 'Kanigiri', 'Addanki', 'Pamuru',
+  'Cumbum', 'Yerragondapalem', 'Kurichedu', 'Santhanuthalapadu',
+  'Hyderabad', 'Vijayawada', 'Guntur', 'Tirupati', 'Nellore',
+  'Kurnool', 'Kadapa', 'Anantapur', 'Vizag', 'Kakinada',
+  'Rajahmundry', 'Eluru', 'Machilipatnam', 'Tenali', 'Narasaraopet',
+];
+
 async function translateToTelugu(text) {
   if (!text.trim()) return '';
   try {
@@ -31,22 +41,24 @@ async function translateToTelugu(text) {
 // ── Vendors Tab ──────────────────────────────────────────────────────────────
 
 function VendorsTab() {
-  const [vendors,      setVendors]      = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [editTarget,   setEditTarget]   = useState(null);
-  const [form,         setForm]         = useState({
+  const [vendors,       setVendors]       = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [modalOpen,     setModalOpen]     = useState(false);
+  const [editTarget,    setEditTarget]    = useState(null);
+  const [form,          setForm]          = useState({
     name: '', name_en: '', phone: '', area: '', area_en: '', active: true,
   });
-  const [saving,       setSaving]       = useState(false);
-  const [translating,  setTranslating]  = useState({ name: false, area: false });
+  const [saving,        setSaving]        = useState(false);
+  const [translating,   setTranslating]   = useState({ name: false, area: false });
+  const [areaSuggestions, setAreaSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const loadVendors = useCallback(async () => {
     setLoading(true);
     try {
       const snap = await getDocs(collection(db, 'vendors'));
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      list.sort((a, b) => (a.name_en || a.name || '').localeCompare(b.name_en || b.name || ''));
       setVendors(list);
       await LocalDB.set('cache_vendors', list);
     } catch {
@@ -86,7 +98,34 @@ function VendorsTab() {
     setTranslating((p) => ({ ...p, name: false }));
   };
 
+  const handleAreaEnChange = (v) => {
+    setForm((p) => ({ ...p, area_en: v }));
+    if (v.trim().length >= 2) {
+      const lower = v.toLowerCase();
+      const filtered = AP_LOCATIONS.filter((loc) =>
+        loc.toLowerCase().includes(lower)
+      ).slice(0, 5);
+      setAreaSuggestions(filtered);
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectAreaSuggestion = async (loc) => {
+    setForm((p) => ({ ...p, area_en: loc }));
+    setShowSuggestions(false);
+    // Auto-translate selected location to Telugu
+    if (!form.area) {
+      setTranslating((p) => ({ ...p, area: true }));
+      const te = await translateToTelugu(loc);
+      if (te) setForm((p) => ({ ...p, area: te }));
+      setTranslating((p) => ({ ...p, area: false }));
+    }
+  };
+
   const handleAreaEnBlur = async () => {
+    setTimeout(() => setShowSuggestions(false), 150);
     if (!form.area_en.trim() || form.area) return;
     setTranslating((p) => ({ ...p, area: true }));
     const te = await translateToTelugu(form.area_en);
@@ -116,14 +155,29 @@ function VendorsTab() {
         active:     form.active,
         updated_at: serverTimestamp(),
       };
+
+      let savedId = editTarget?.id;
       if (editTarget) {
         await updateDoc(doc(db, 'vendors', editTarget.id), data);
       } else {
         data.created_at = serverTimestamp();
-        await addDoc(collection(db, 'vendors'), data);
+        const ref = await addDoc(collection(db, 'vendors'), data);
+        savedId = ref.id;
       }
+
+      // Immediately update LocalDB cache so OrdersScreen picks it up on focus
+      const cached = (await LocalDB.get('cache_vendors')) || [];
+      const serializableData = { ...data, updated_at: new Date().toISOString(), created_at: data.created_at ? new Date().toISOString() : undefined };
+      let updatedCache;
+      if (editTarget) {
+        updatedCache = cached.map((v) => v.id === editTarget.id ? { id: editTarget.id, ...serializableData } : v);
+      } else {
+        updatedCache = [...cached, { id: savedId, ...serializableData }];
+      }
+      await LocalDB.set('cache_vendors', updatedCache);
+
       setModalOpen(false);
-      await loadVendors();
+      await loadVendors(); // refresh from Firestore to get server timestamps
     } catch {
       Alert.alert('లోపం', 'Save failed. Check internet.');
     } finally {
@@ -133,7 +187,7 @@ function VendorsTab() {
 
   const handleDelete = (v) => {
     Alert.alert(
-      `${v.name} తొలగించాలా?`,
+      `${v.name_en || v.name} తొలగించాలా?`,
       'Soft delete — vendor will be hidden.',
       [
         { text: 'రద్దు · Cancel', style: 'cancel' },
@@ -143,6 +197,9 @@ function VendorsTab() {
           onPress: async () => {
             try {
               await updateDoc(doc(db, 'vendors', v.id), { active: false, updated_at: serverTimestamp() });
+              // Update cache immediately
+              const cached = (await LocalDB.get('cache_vendors')) || [];
+              await LocalDB.set('cache_vendors', cached.map((c) => c.id === v.id ? { ...c, active: false } : c));
               await loadVendors();
             } catch { Alert.alert('లోపం', 'Delete failed.'); }
           },
@@ -166,12 +223,16 @@ function VendorsTab() {
         renderItem={({ item }) => (
           <View style={[styles.vendorCard, !item.active && styles.inactiveCard]}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.vendorName}>{item.name}</Text>
+              {/* Admin sees English first */}
+              <Text style={styles.vendorNameEn}>{item.name_en || item.name}</Text>
               <Text style={styles.vendorSub}>
-                {item.name_en}{item.area ? `  ·  ${item.area}` : ''}
+                {item.name ? `${item.name}` : ''}{item.area ? `  ·  ${item.area}` : ''}
               </Text>
-              {item.area_en ? <Text style={styles.vendorSub2}>{item.area_en}</Text> : null}
-              {item.phone ? <Text style={styles.vendorPhone}>{item.phone}</Text> : null}
+              {(item.area_en || item.phone) ? (
+                <Text style={styles.vendorSub2}>
+                  {item.area_en ?? ''}{item.phone ? `  ·  ${item.phone}` : ''}
+                </Text>
+              ) : null}
               {!item.active && <Text style={styles.inactiveLabel}>నిష్క్రియ · Inactive</Text>}
             </View>
             <View style={styles.vendorActions}>
@@ -196,8 +257,8 @@ function VendorsTab() {
               {editTarget ? 'వెండర్ సవరించండి · Edit' : 'వెండర్ చేర్చండి · Add'}
             </Text>
 
-            {/* English name first — translates to Telugu */}
-            <Text style={styles.fieldLabel}>వెండర్ పేరు (English) · name_en *</Text>
+            {/* 1. English name */}
+            <Text style={styles.fieldLabel}>వెండర్ పేరు (English) *</Text>
             <TextInput
               style={styles.input}
               placeholder="e.g. Raju, Suresh, Murali"
@@ -206,9 +267,9 @@ function VendorsTab() {
               onBlur={handleNameEnBlur}
             />
 
-            {/* Telugu name — auto-filled, editable */}
+            {/* 2. Telugu name — auto-translated */}
             <View style={styles.transRow}>
-              <Text style={styles.fieldLabel}>వెండర్ పేరు (తెలుగు) · name</Text>
+              <Text style={styles.fieldLabel}>వెండర్ పేరు (తెలుగు)</Text>
               <TouchableOpacity onPress={() => retranslate('name')} style={styles.retransBtn}>
                 <Text style={styles.retransBtnText}>🔄</Text>
               </TouchableOpacity>
@@ -227,19 +288,35 @@ function VendorsTab() {
               />
             )}
 
-            {/* English area — translates to Telugu */}
-            <Text style={styles.fieldLabel}>ప్రాంతం (English) · area_en</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Darsi Market, Kandukur"
-              value={form.area_en}
-              onChangeText={(v) => setForm((p) => ({ ...p, area_en: v }))}
-              onBlur={handleAreaEnBlur}
-            />
+            {/* 3. English area — with AP location suggestions */}
+            <Text style={styles.fieldLabel}>ప్రాంతం / Location (English)</Text>
+            <View style={{ zIndex: 10 }}>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Darsi Market, Kandukur, Podili"
+                value={form.area_en}
+                onChangeText={handleAreaEnChange}
+                onBlur={handleAreaEnBlur}
+                onFocus={() => { if (form.area_en.length >= 2) setShowSuggestions(areaSuggestions.length > 0); }}
+              />
+              {showSuggestions && (
+                <View style={styles.suggestionBox}>
+                  {areaSuggestions.map((loc) => (
+                    <TouchableOpacity
+                      key={loc}
+                      style={styles.suggestionRow}
+                      onPress={() => selectAreaSuggestion(loc)}
+                    >
+                      <Text style={styles.suggestionText}>📍 {loc}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
 
-            {/* Telugu area — auto-filled, editable */}
+            {/* 4. Telugu area — auto-translated */}
             <View style={styles.transRow}>
-              <Text style={styles.fieldLabel}>ప్రాంతం (తెలుగు) · area</Text>
+              <Text style={styles.fieldLabel}>ప్రాంతం (తెలుగు)</Text>
               <TouchableOpacity onPress={() => retranslate('area')} style={styles.retransBtn}>
                 <Text style={styles.retransBtnText}>🔄</Text>
               </TouchableOpacity>
@@ -258,6 +335,7 @@ function VendorsTab() {
               />
             )}
 
+            {/* 5. Phone */}
             <Text style={styles.fieldLabel}>ఫోన్ నంబర్ · Phone</Text>
             <TextInput
               style={styles.input}
@@ -267,6 +345,7 @@ function VendorsTab() {
               onChangeText={(v) => setForm((p) => ({ ...p, phone: v }))}
             />
 
+            {/* 6. Active toggle */}
             <View style={styles.switchRow}>
               <Text style={styles.switchLabel}>సక్రియం · Active</Text>
               <Switch
@@ -294,12 +373,12 @@ function VendorsTab() {
 // ── Vegetables Tab ───────────────────────────────────────────────────────────
 
 function VegetablesTab() {
-  const [vegs,       setVegs]       = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [modalOpen,  setModalOpen]  = useState(false);
-  const [editTarget, setEditTarget] = useState(null);
-  const [form,       setForm]       = useState({ name_te: '', name_en: '', emoji: '', unit: 'kg', active: true });
-  const [saving,     setSaving]     = useState(false);
+  const [vegs,        setVegs]        = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [modalOpen,   setModalOpen]   = useState(false);
+  const [editTarget,  setEditTarget]  = useState(null);
+  const [form,        setForm]        = useState({ name_te: '', name_en: '', emoji: '', unit: 'kg', active: true });
+  const [saving,      setSaving]      = useState(false);
   const [translating, setTranslating] = useState(false);
 
   const loadVegs = useCallback(async () => {
@@ -391,8 +470,8 @@ function VegetablesTab() {
           <View style={[styles.vegRow, !item.active && styles.inactiveCard]}>
             <Text style={styles.vegEmoji}>{item.emoji ?? '🥬'}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.vegNameTe}>{item.name_te}</Text>
-              <Text style={styles.vegNameEn}>{item.name_en}  ·  {item.unit}</Text>
+              <Text style={styles.vegNameEn}>{item.name_en}</Text>
+              <Text style={styles.vegNameTe}>{item.name_te}  ·  {item.unit}</Text>
             </View>
             <Switch
               value={item.active !== false}
@@ -530,10 +609,10 @@ function SettingsTab({ navigation }) {
     Alert.alert('సేవ్ అయింది ✓', 'Settings saved successfully.');
   };
 
-  const handleLogout = () => {
-    Alert.alert('లాగ్ అవుట్', 'Admin panel నుండి బయటకు వెళ్ళాలా?', [
+  const handleExit = () => {
+    Alert.alert('Admin Panel నుండి బయటకు', 'PIN Login కి వెళ్ళాలా?', [
       { text: 'రద్దు', style: 'cancel' },
-      { text: 'లాగ్ అవుట్', onPress: () => navigation.replace('Login') },
+      { text: 'బయటకు · Exit', onPress: () => navigation.replace('Login') },
     ]);
   };
 
@@ -543,7 +622,7 @@ function SettingsTab({ navigation }) {
     <ScrollView contentContainerStyle={{ padding: 20 }}>
       <Text style={styles.sectionTitle}>🔐 PIN మార్చండి · Change PINs</Text>
 
-      <Text style={styles.fieldLabel}>Admin PIN (current admin access)</Text>
+      <Text style={styles.fieldLabel}>Admin PIN</Text>
       <TextInput
         style={styles.input}
         value={adminPin}
@@ -554,7 +633,7 @@ function SettingsTab({ navigation }) {
         placeholder="Admin PIN"
       />
 
-      <Text style={styles.fieldLabel}>Regular PIN (parents use this)</Text>
+      <Text style={styles.fieldLabel}>Regular PIN (parents)</Text>
       <TextInput
         style={styles.input}
         value={regularPin}
@@ -587,7 +666,7 @@ function SettingsTab({ navigation }) {
         <Text style={styles.envLabel}>Environment: {envLabels[APP_ENV] ?? APP_ENV}</Text>
       </View>
 
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+      <TouchableOpacity style={styles.logoutBtn} onPress={handleExit}>
         <Text style={styles.logoutText}>🚪 Admin Panel నుండి బయటకు · Exit Admin</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -607,10 +686,19 @@ export default function AdminPanel({ navigation }) {
 
   return (
     <SafeAreaView style={styles.root}>
+      {/* Header with close button */}
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.exitBtn}
+          onPress={() => navigation.replace('Login')}
+        >
+          <Text style={styles.exitBtnText}>✕ బయటకు</Text>
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>⚙️ Admin Panel</Text>
+        <View style={{ width: 80 }} />
       </View>
 
+      {/* Tab bar */}
       <View style={styles.tabBar}>
         {TABS.map((t) => (
           <TouchableOpacity
@@ -625,6 +713,7 @@ export default function AdminPanel({ navigation }) {
         ))}
       </View>
 
+      {/* Tab content */}
       <View style={{ flex: 1 }}>
         {activeTab === 'vendors'  && <VendorsTab />}
         {activeTab === 'vegs'     && <VegetablesTab />}
@@ -637,13 +726,20 @@ export default function AdminPanel({ navigation }) {
 // ── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root:         { flex: 1, backgroundColor: '#f4f6f4' },
-  header:       { backgroundColor: '#1a472a', paddingVertical: 14, paddingHorizontal: 20, alignItems: 'center' },
-  headerTitle:  { color: '#fff', fontSize: 20, fontWeight: '700' },
-  tabBar:       { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#ddd' },
-  tab:          { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabActive:    { borderBottomWidth: 3, borderColor: '#2e7d32' },
-  tabText:      { fontSize: 14, color: '#666' },
+  root:    { flex: 1, backgroundColor: '#f4f6f4' },
+  header:  {
+    backgroundColor: '#1a472a',
+    paddingVertical: 14, paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700', textAlign: 'center', flex: 1 },
+  exitBtn:     { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8 },
+  exitBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+
+  tabBar:        { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#ddd' },
+  tab:           { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  tabActive:     { borderBottomWidth: 3, borderColor: '#2e7d32' },
+  tabText:       { fontSize: 14, color: '#666' },
   tabTextActive: { color: '#2e7d32', fontWeight: '700' },
 
   addBtn:     { margin: 12, backgroundColor: '#2e7d32', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
@@ -651,10 +747,9 @@ const styles = StyleSheet.create({
 
   vendorCard:    { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center', elevation: 1 },
   inactiveCard:  { opacity: 0.5 },
-  vendorName:    { fontSize: 17, fontWeight: '700', color: '#1a472a' },
+  vendorNameEn:  { fontSize: 16, fontWeight: '700', color: '#1a472a' },
   vendorSub:     { fontSize: 13, color: '#555', marginTop: 2 },
   vendorSub2:    { fontSize: 12, color: '#888', marginTop: 1 },
-  vendorPhone:   { fontSize: 13, color: '#777', marginTop: 2 },
   inactiveLabel: { fontSize: 12, color: '#e53935', marginTop: 4 },
   vendorActions: { flexDirection: 'row', gap: 8 },
   editBtn:       { padding: 6 },
@@ -662,30 +757,40 @@ const styles = StyleSheet.create({
   delBtn:        { padding: 6 },
   delBtnText:    { fontSize: 20 },
 
-  vegRow:     { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 10, elevation: 1 },
-  vegEmoji:   { fontSize: 28 },
-  vegNameTe:  { fontSize: 16, fontWeight: '700', color: '#1a472a' },
-  vegNameEn:  { fontSize: 12, color: '#666', marginTop: 2 },
+  vegRow:    { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 10, elevation: 1 },
+  vegEmoji:  { fontSize: 28 },
+  vegNameEn: { fontSize: 16, fontWeight: '700', color: '#1a472a' },
+  vegNameTe: { fontSize: 12, color: '#666', marginTop: 2 },
 
-  modalOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalBox:       { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
-  modalTitle:     { fontSize: 18, fontWeight: '700', color: '#1a472a', marginBottom: 16, textAlign: 'center' },
-  input:          { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, fontSize: 15, marginBottom: 10 },
-  transRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalBox:     { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
+  modalTitle:   { fontSize: 18, fontWeight: '700', color: '#1a472a', marginBottom: 16, textAlign: 'center' },
+  input:        { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, fontSize: 15, marginBottom: 10 },
+  transRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   transPlaceholder: { flexDirection: 'row', alignItems: 'center' },
-  retransBtn:     { padding: 4 },
+  retransBtn:   { padding: 4 },
   retransBtnText: { fontSize: 18 },
-  switchRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  switchLabel:    { fontSize: 15, color: '#333' },
-  fieldLabel:     { fontSize: 13, color: '#555', marginBottom: 6 },
-  unitRow:        { flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
-  unitChip:       { borderWidth: 1, borderColor: '#ccc', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
-  unitChipSel:    { backgroundColor: '#2e7d32', borderColor: '#2e7d32' },
-  unitChipText:   { fontSize: 13, color: '#333' },
-  modalBtns:      { flexDirection: 'row', gap: 12, marginTop: 4 },
-  cancelBtn:      { flex: 1, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#ccc', alignItems: 'center' },
-  saveBtn:        { flex: 1, padding: 12, borderRadius: 8, backgroundColor: '#2e7d32', alignItems: 'center' },
-  saveBtnText:    { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  suggestionBox: {
+    backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#ccc',
+    marginTop: -8, marginBottom: 10,
+    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
+    elevation: 4, zIndex: 100,
+  },
+  suggestionRow: { paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f5f5f5', minHeight: 44, justifyContent: 'center' },
+  suggestionText: { fontSize: 14, color: '#1a472a' },
+
+  switchRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  switchLabel:  { fontSize: 15, color: '#333' },
+  fieldLabel:   { fontSize: 13, color: '#555', marginBottom: 6 },
+  unitRow:      { flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
+  unitChip:     { borderWidth: 1, borderColor: '#ccc', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
+  unitChipSel:  { backgroundColor: '#2e7d32', borderColor: '#2e7d32' },
+  unitChipText: { fontSize: 13, color: '#333' },
+  modalBtns:    { flexDirection: 'row', gap: 12, marginTop: 4 },
+  cancelBtn:    { flex: 1, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#ccc', alignItems: 'center' },
+  saveBtn:      { flex: 1, padding: 12, borderRadius: 8, backgroundColor: '#2e7d32', alignItems: 'center' },
+  saveBtnText:  { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1a472a', marginTop: 20, marginBottom: 10 },
   envBox:       { marginTop: 28, padding: 14, backgroundColor: '#e8f5e9', borderRadius: 10, alignItems: 'center' },
