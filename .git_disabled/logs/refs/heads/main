@@ -1,0 +1,28 @@
+0000000000000000000000000000000000000000 26c7eee0fef26b1794faf40a44c414ae2dd551c4 manikhanta nalabolu <manik@maniLaptop.(none)> 1781990677 -0500	clone: from https://github.com/Darsi-Greens/darsi-veg-app
+26c7eee0fef26b1794faf40a44c414ae2dd551c4 a6a31e96de172f47464995ad0dc6e30abeb2252c Manik <megamani0007@gmail.com> 1781991002 -0500	commit: feat: initial project setup with MorningPrices and PinLogin screens
+a6a31e96de172f47464995ad0dc6e30abeb2252c e1be223cc38217fc0d1679e4bcb3b3ff92494580 Manik <megamani0007@gmail.com> 1781993564 -0500	commit: Add Sales.js screen — vegetable grid with sale confirmation
+e1be223cc38217fc0d1679e4bcb3b3ff92494580 71eba6f7fb2f42639d75bc837bf22bb69bab0e5f Manik <megamani0007@gmail.com> 1781996309 -0500	commit: Rebuild Sales.js — units (kg/gm/pcs), offline queue, dual price lookup
+71eba6f7fb2f42639d75bc837bf22bb69bab0e5f c423b75934e037406ab6d4be19b7ff9030de335a Manik <megamani0007@gmail.com> 1781996778 -0500	commit: Add VendorOrder, TodaySummary, AppNavigator, App.js — complete app shell
+c423b75934e037406ab6d4be19b7ff9030de335a f84bcf92371bb25eadb428dd5a01651ed2416452 Manik <megamani0007@gmail.com> 1782004806 -0500	commit: fix: resolve Expo entry point error
+f84bcf92371bb25eadb428dd5a01651ed2416452 134ff28c0ff4a01faba5b1a128aab2e42073e91b Manik <megamani0007@gmail.com> 1782005100 -0500	commit: fix: add babel config and web dependencies
+134ff28c0ff4a01faba5b1a128aab2e42073e91b 43e8fb49bce175f073fc44c03b4b47495e77aac7 Manik <megamani0007@gmail.com> 1782005932 -0500	commit: fix: upgrade to Expo SDK 54 for Expo Go compatibility
+43e8fb49bce175f073fc44c03b4b47495e77aac7 c947f964a64f86d88be5979ee6787ed9a8824b45 Manik <megamani0007@gmail.com> 1782006383 -0500	commit: fix: downgrade Firebase v11 to v10 for Hermes compatibility
+c947f964a64f86d88be5979ee6787ed9a8824b45 bc7c13d0d0afa98cd3ebd356658ce61284627ce8 Manik <megamani0007@gmail.com> 1782008784 -0500	commit: fix: force Babel default transform profile to compile private class fields
+bc7c13d0d0afa98cd3ebd356658ce61284627ce8 cf46b5f3b62da40cd66f3dbfa119c6c08761e4dd Manik <megamani0007@gmail.com> 1782009241 -0500	commit: fix: restore react-native 0.81.5 for Expo Go SDK 54 compatibility
+cf46b5f3b62da40cd66f3dbfa119c6c08761e4dd 42c6c8e0833f6f246ceacebfdf8730c062e0be52 Manik <megamani0007@gmail.com> 1782009627 -0500	commit: fix: remove Firebase Auth, use SecureStore PIN only
+42c6c8e0833f6f246ceacebfdf8730c062e0be52 245c83534b87c2ef24fd0a68c1b814d21fd601cf Manik <megamani0007@gmail.com> 1782011868 -0500	commit: feat: restructure to 5-tab navigation
+245c83534b87c2ef24fd0a68c1b814d21fd601cf 6aec744d52dc1c1b7aefb1954b8ab9c27fb2f289 Manik <megamani0007@gmail.com> 1782012029 -0500	commit: feat: OrdersScreen — order lifecycle with placed/received toggle
+6aec744d52dc1c1b7aefb1954b8ab9c27fb2f289 b4f8563d592ba36a0140acc9894ff8b202f4d124 Manik <megamani0007@gmail.com> 1782012127 -0500	commit: feat: SellingPricesScreen — today selling prices with buy price hints
+b4f8563d592ba36a0140acc9894ff8b202f4d124 675ee300daa6d5ef6960630708ee5391ac9107a2 Manik <megamani0007@gmail.com> 1782012240 -0500	commit: feat: StockScreen — carry-over + wastage + remaining stock calc
+675ee300daa6d5ef6960630708ee5391ac9107a2 3185e6ba7f38b73d6481287c7fa17fb84ec2044d Manik <megamani0007@gmail.com> 1782012560 -0500	commit: feat: AnalyticsScreen — 3-tab business dashboard
+3185e6ba7f38b73d6481287c7fa17fb84ec2044d ba28dd55f59d12e6d7c7fc1a2d5e1d6ed4d549b7 Manik <megamani0007@gmail.com> 1782052820 -0500	commit: fix: orders save + veg picker + selling prices view/edit toggle + test cases
+ba28dd55f59d12e6d7c7fc1a2d5e1d6ed4d549b7 86623491b67ea1861bc894924c485868e8487ea2 Manik <megamani0007@gmail.com> 1782053955 -0500	commit: audit: fix analytics bugs, stock validation, button heights, test cases, launch checklist
+86623491b67ea1861bc894924c485868e8487ea2 86c7863d1eb5c2631c18c4ffaa3fc397620bcb0f Manik <megamani0007@gmail.com> 1782054857 -0500	commit: feat: 3-environment setup (dev/staging/prod) with env banners, icons, EAS build profiles
+86c7863d1eb5c2631c18c4ffaa3fc397620bcb0f 2674e8f1108cba272181e438b36795258fb6c3ce Manik <megamani0007@gmail.com> 1782055842 -0500	commit: feat: update env setup — real Firebase keys loaded, package names com.nrbveg.*, DEV=red/STG=orange banners, release flow docs
+2674e8f1108cba272181e438b36795258fb6c3ce d0c0c6dc06c77c65cc8e9e72db23ce029a061b2a Manik <megamani0007@gmail.com> 1782056005 -0500	commit: docs: update .env.example files with EXPO_PUBLIC_ENV_NAME field
+d0c0c6dc06c77c65cc8e9e72db23ce029a061b2a 1d8c7c0f0de4061a6f61c207793d296b68aa1c94 Manik <megamani0007@gmail.com> 1782057281 -0500	commit: fix: remove invalid packageName from eas.json — package names live in app.config.js
+1d8c7c0f0de4061a6f61c207793d296b68aa1c94 be0ced740722ca472dc9bf26ae79d9adf88b5823 Manik <megamani0007@gmail.com> 1782057761 -0500	commit: fix: add EAS project ID to app.config.js extra.eas.projectId
+be0ced740722ca472dc9bf26ae79d9adf88b5823 90e639713714ebd7531c3db57d7c3289463abfc5 Manik <megamani0007@gmail.com> 1782057873 -0500	commit: fix: add owner field to app.config.js
+90e639713714ebd7531c3db57d7c3289463abfc5 a02dad1ced931d0a2290f62a33e9d415f6b8f382 Manik <megamani0007@gmail.com> 1782057990 -0500	commit: fix: set slug to fixed value 'nrb-vegetables' for all environments
+a02dad1ced931d0a2290f62a33e9d415f6b8f382 7b11f7812fa47fbe604c937630fdc43366bcf53c Manik <megamani0007@gmail.com> 1782058297 -0500	commit: refactor: extract app-env.js helper, clean app.config.js — no duplication, secrets in env vars only
+7b11f7812fa47fbe604c937630fdc43366bcf53c 9c03adc25741c3c547ee317fcf7046157a215ade Manik <megamani0007@gmail.com> 1782066185 -0500	commit: feat: admin panel, dual PIN, vendor cards, local-first saves, sync queue

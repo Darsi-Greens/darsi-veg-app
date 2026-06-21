@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+
+# Firebase service account — never commit
+serviceAccountKey.json
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Environment variables — NEVER commit these
+.env
+.env.local
+.env.*.local
+.env.development
+.env.staging
+.env.production
+# Example files (no real secrets) are committed and safe
+# .env.development.example ✓ tracked
+# .env.staging.example     ✓ tracked
+# .env.production.example  ✓ tracked
+
+# Native builds
+android/
+ios/
+
+# Build outputs
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+yarn.lock
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# TypeScript
+*.tsbuildinfo

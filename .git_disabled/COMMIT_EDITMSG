@@ -1,0 +1,15 @@
+feat: admin panel, dual PIN, vendor cards, local-first saves, sync queue
+
+- LocalDB.js: AsyncStorage wrapper (get/set/append/clear)
+- SyncQueue.js: persistent retry queue for failed Firestore writes (max 3 attempts, supports addDoc + setDoc)
+- SyncIndicator.js: green/yellow/red sync dot in every screen header
+- AdminPanel.js: 3-tab admin screen (Vendors, Vegetables, Settings)
+- PinLogin.js: dual PIN - 9999 -> AdminPanel, 1234 -> Home, shake animation on wrong PIN
+- App.js: SyncQueue.process on foreground + every 30s, preload cache after PIN verified
+- OrdersScreen.js: vendor card grid (2-col, search, green selection), local-first saves, test button
+- Sales.js: local-first saves, label fixes (How much / Total amount / Record Sale)
+- SellingPricesScreen.js: local-first saves, buying price hint, label fixes
+- StockScreen.js: local-first for wastage + carry-over saves
+- AnalyticsScreen.js: local-first for expense saves
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
