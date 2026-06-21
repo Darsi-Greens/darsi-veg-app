@@ -8,6 +8,9 @@ import {
   collection, addDoc, getDocs, serverTimestamp, query, where,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { LocalDB }  from '../services/LocalDB';
+import { SyncQueue } from '../services/SyncQueue';
+import SyncIndicator from '../components/SyncIndicator';
 
 const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
 
@@ -127,27 +130,31 @@ export default function StockScreen() {
       return;
     }
     setSavingWaste(true);
+    const stockData = {
+      veg_id:      wasteModal.veg_id,
+      veg_name_te: wasteModal.veg_name_te,
+      type:        'wastage',
+      quantity:    qty,
+      unit:        wasteModal.unit,
+      log_date:    todayStr(),
+    };
+
+    // 1. Save locally + update UI immediately
+    await LocalDB.append('today_stock_log', { ...stockData, saved_at: new Date().toISOString() });
+    setRows((prev) => prev.map((r) =>
+      r.id === wasteModal.veg_id
+        ? { ...r, wasteQty: r.wasteQty + qty, remaining: parseFloat((r.remaining - qty).toFixed(3)) }
+        : r
+    ));
+    setWasteModal(null);
+    setWasteQty('');
+    setSavingWaste(false);
+
+    // 2. Sync to Firestore in background
     try {
-      await addDoc(collection(db, 'stock_log'), {
-        veg_id:     wasteModal.veg_id,
-        veg_name_te: wasteModal.veg_name_te,
-        type:       'wastage',
-        quantity:   qty,
-        unit:       wasteModal.unit,
-        log_date:   todayStr(),
-        created_at: serverTimestamp(),
-      });
-      setRows((prev) => prev.map((r) =>
-        r.id === wasteModal.veg_id
-          ? { ...r, wasteQty: r.wasteQty + qty, remaining: parseFloat((r.remaining - qty).toFixed(3)) }
-          : r
-      ));
-      setWasteModal(null);
-      setWasteQty('');
+      await addDoc(collection(db, 'stock_log'), { ...stockData, created_at: serverTimestamp() });
     } catch {
-      Alert.alert('లోపం', 'వేస్ట్ నమోదు విఫలమైంది.');
-    } finally {
-      setSavingWaste(false);
+      await SyncQueue.add({ collectionName: 'stock_log', data: stockData });
     }
   };
 
@@ -157,27 +164,31 @@ export default function StockScreen() {
     const qty = parseFloat(carryQty);
     if (!qty || qty <= 0) { Alert.alert('పరిమాణం చేర్చండి', 'నిన్నటి స్టాక్ పరిమాణం నమోదు చేయండి.'); return; }
     setSavingCarry(true);
+    const carryData = {
+      veg_id:      carryModal.veg_id,
+      veg_name_te: carryModal.veg_name_te,
+      type:        'carry_over',
+      quantity:    qty,
+      unit:        carryModal.unit,
+      log_date:    todayStr(),
+    };
+
+    // 1. Save locally + update UI immediately
+    await LocalDB.append('today_stock_log', { ...carryData, saved_at: new Date().toISOString() });
+    setRows((prev) => prev.map((r) =>
+      r.id === carryModal.veg_id
+        ? { ...r, carryQty: r.carryQty + qty, remaining: parseFloat((r.remaining + qty).toFixed(3)) }
+        : r
+    ));
+    setCarryModal(null);
+    setCarryQty('');
+    setSavingCarry(false);
+
+    // 2. Sync to Firestore in background
     try {
-      await addDoc(collection(db, 'stock_log'), {
-        veg_id:      carryModal.veg_id,
-        veg_name_te: carryModal.veg_name_te,
-        type:        'carry_over',
-        quantity:    qty,
-        unit:        carryModal.unit,
-        log_date:    todayStr(),
-        created_at:  serverTimestamp(),
-      });
-      setRows((prev) => prev.map((r) =>
-        r.id === carryModal.veg_id
-          ? { ...r, carryQty: r.carryQty + qty, remaining: parseFloat((r.remaining + qty).toFixed(3)) }
-          : r
-      ));
-      setCarryModal(null);
-      setCarryQty('');
+      await addDoc(collection(db, 'stock_log'), { ...carryData, created_at: serverTimestamp() });
     } catch {
-      Alert.alert('లోపం', 'నిన్నటి స్టాక్ నమోదు విఫలమైంది.');
-    } finally {
-      setSavingCarry(false);
+      await SyncQueue.add({ collectionName: 'stock_log', data: carryData });
     }
   };
 
@@ -262,10 +273,13 @@ export default function StockScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>స్టాక్ — {todayStr()}</Text>
-        <Text style={styles.headerSub}>
-          {rows.filter((r) => r.remaining <= 0).length} అయిపోయాయి  ·  {rows.filter((r) => r.remaining > 0 && r.remaining <= (LOW_THRESHOLD[r.unit] ?? 1)).length} తక్కువగా ఉన్నాయి
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>స్టాక్ — {todayStr()}</Text>
+          <Text style={styles.headerSub}>
+            {rows.filter((r) => r.remaining <= 0).length} అయిపోయాయి  ·  {rows.filter((r) => r.remaining > 0 && r.remaining <= (LOW_THRESHOLD[r.unit] ?? 1)).length} తక్కువగా ఉన్నాయి
+          </Text>
+        </View>
+        <SyncIndicator />
       </View>
 
       {rows.length === 0 ? (

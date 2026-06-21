@@ -18,6 +18,9 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { LocalDB }  from '../services/LocalDB';
+import { SyncQueue } from '../services/SyncQueue';
+import SyncIndicator from '../components/SyncIndicator';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_SIZE = (SCREEN_WIDTH - 48) / 2;
@@ -257,23 +260,23 @@ export default function Sales() {
     };
 
     setSaving(true);
+
+    // 1. Save to LocalDB immediately
+    await LocalDB.append('today_sales', { ...saleDoc, saved_at: new Date().toISOString() });
+
+    // 2. Update UI immediately
+    closeModal();
+    Alert.alert(
+      '✓ అమ్మకం నమోదు · Record Sale',
+      `${selected.name_te} — ${quantity} ${UNIT_TE[activeUnit]}\nమొత్తం · Total amount: ₹${totalAmount}`
+    );
+    setSaving(false);
+
+    // 3. Sync to Firestore in background
     try {
       await addDoc(collection(db, 'sales'), { ...saleDoc, created_at: serverTimestamp() });
-      closeModal();
-      Alert.alert(
-        '✓ అమ్మకం నిర్ధారించబడింది / Sale Saved',
-        `${selected.name_te} — ${quantity} ${UNIT_TE[activeUnit]}\nమొత్తం / Total: ₹${totalAmount}`
-      );
     } catch {
-      // Offline: queue locally and sync when internet returns
-      await queueOfflineSale(saleDoc);
-      closeModal();
-      Alert.alert(
-        'అఫ్‌లైన్‌లో సేవ్ అయింది / Saved Offline',
-        `${selected.name_te} — ₹${totalAmount}\n\nఇంటర్నెట్ వచ్చినప్పుడు స్వయంగా సింక్ అవుతుంది.\nWill sync automatically when internet returns.`
-      );
-    } finally {
-      setSaving(false);
+      await SyncQueue.add({ collectionName: 'sales', data: saleDoc });
     }
   };
 
@@ -380,7 +383,7 @@ export default function Sales() {
               )}
 
               {/* Quantity stepper */}
-              <Text style={styles.sectionLabel}>పరిమాణం / Quantity</Text>
+              <Text style={styles.sectionLabel}>ఎంత కావాలి? · How much?</Text>
               <View style={styles.qtyRow}>
                 <TouchableOpacity style={styles.qtyBtn} onPress={() => stepQty(-1)}>
                   <Text style={styles.qtyBtnText}>−</Text>
@@ -400,7 +403,7 @@ export default function Sales() {
 
               {/* Total */}
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>మొత్తం / Total</Text>
+                <Text style={styles.totalLabel}>మొత్తం · Total amount</Text>
                 <Text style={styles.totalValue}>₹{total}</Text>
               </View>
 
@@ -434,7 +437,7 @@ export default function Sales() {
                   disabled={saving}
                 >
                   <Text style={styles.confirmText}>
-                    {saving ? 'సేవ్...' : '✓ అమ్మకం నిర్ధారించు'}
+                    {saving ? 'సేవ్...' : 'అమ్మకం నమోదు · Record Sale'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -456,11 +459,7 @@ export default function Sales() {
             <Text style={styles.headerTitle}>అమ్మకాలు</Text>
             <Text style={styles.headerSub}>Sales — {todayStr()}</Text>
           </View>
-          {pendingCount > 0 && (
-            <TouchableOpacity style={styles.syncBadge} onPress={flushOfflineQueue}>
-              <Text style={styles.syncBadgeText}>⟳ {pendingCount} పెండింగ్</Text>
-            </TouchableOpacity>
-          )}
+          <SyncIndicator />
         </View>
       </View>
 

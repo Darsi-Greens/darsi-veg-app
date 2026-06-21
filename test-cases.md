@@ -1,6 +1,6 @@
 # Darsi Greens — Test Cases
 
-> **Last audit:** 2026-06-21 — Pre-launch audit completed. All critical bugs fixed. See LAUNCH-CHECKLIST.md for full results.
+> **Last audit:** 2026-06-21 — Pre-launch audit completed. Local-first architecture, dual PIN, vendor cards, admin panel added.
 
 ---
 
@@ -42,6 +42,66 @@ Using Firestore REST API or Firebase console:
 - Write to `sales` with `payment_mode: 'barter'` → **Expected:** rejected
 - Write to `vegetables` → **Expected:** rejected (read-only)
 - Write to `vendor_orders` with empty `vendor_name` → **Expected:** rejected
+
+---
+
+## 7. New Feature Test Cases (2026-06-21)
+
+### TC-NEW-01: Dual PIN — Admin flow
+1. Launch app → PIN screen appears
+2. Enter `9999` → **Expected:** AdminPanel opens (vendors/vegetables/settings tabs), NOT the regular home tabs
+3. Tap "🚪 Admin Panel నుండి బయటకు" in Settings tab → **Expected:** returns to PIN screen
+
+### TC-NEW-02: Dual PIN — Regular flow
+1. PIN screen → enter `1234` → **Expected:** Home tabs open (ఆర్డర్లు, ధరలు, అమ్మకాలు, స్టాక్, నివేదిక)
+2. Enter wrong PIN (e.g. `0000`) → **Expected:** shake animation, "తప్పు PIN · Wrong PIN" error for 2 seconds, PIN cleared
+
+### TC-NEW-03: Admin PIN change
+1. Enter `9999` → AdminPanel → Settings tab
+2. Enter new admin PIN `7777` and save → **Expected:** "సేవ్ అయింది ✓"
+3. Go back to PIN screen, enter `9999` → **Expected:** rejected (old PIN no longer works)
+4. Enter `7777` → **Expected:** AdminPanel opens
+
+### TC-NEW-04: Vendor card selection in Orders
+1. Open OrdersScreen → tap "+ ఆర్డర్"
+2. **Expected:** 2-column card grid shows రాజు, సురేష్, మురళి with area labels
+3. Tap "రాజు" card → **Expected:** green border + ✓ tick, green bar at top "✓ రాజు · Darsi Market" with X
+4. Tap X in green bar → **Expected:** vendor deselected, cards grid reappears
+
+### TC-NEW-05: Vendor card search
+1. Add Order modal → type "సురేష్" in search bar
+2. **Expected:** only Suresh card visible, others filtered out
+3. Tap X to clear → **Expected:** all 3 cards return
+
+### TC-NEW-06: Local-first order save
+1. Disable WiFi on device
+2. Open Orders → + ఆర్డర్ → select vendor (రాజు) → add tomatoes 5kg at ₹30
+3. Tap "ఆర్డర్ సేవ్ చేయండి" → **Expected:** order appears in pending list IMMEDIATELY without delay
+4. Re-enable WiFi → SyncIndicator turns green → check Firestore console: order doc created
+
+### TC-NEW-07: Local-first sale save
+1. Disable WiFi → go to అమ్మకాలు → tap Tomato card
+2. Set qty, tap "అమ్మకం నమోదు · Record Sale"
+3. **Expected:** modal closes immediately with confirmation alert, no waiting spinner
+4. Re-enable WiFi → SyncIndicator shows pending count → turns green after sync
+
+### TC-NEW-08: SyncIndicator states
+1. Disable WiFi → record 3 sales → **Expected:** 🔴 with pending count (e.g. "🔴 3 ⏳")
+2. Re-enable WiFi → tap 🔴 indicator → **Expected:** turns 🟡 while syncing → then 🟢
+
+### TC-NEW-09: Admin panel — Add vendor
+1. Admin PIN → Vendors tab → "+ వెండర్ చేర్చండి"
+2. Fill: name "నాగ", name_en "Naga", phone "9123456789", area "Ongole"
+3. Save → **Expected:** new card appears in list immediately; Firestore `vendors` collection has new doc
+
+### TC-NEW-10: Admin panel — Vegetable toggle
+1. Admin PIN → కూరగాయలు tab → find Tomato row
+2. Toggle active switch to OFF → **Expected:** row grays out
+3. Go to అమ్మకాలు screen → **Expected:** Tomato no longer appears in grid
+
+### TC-NEW-11: Performance — Load time
+1. Cold start app (kill + reopen) → **Expected:** vendor cards in Orders visible within 1 second (from LocalDB cache)
+2. Firestore sync happens in background without blocking UI
 
 ---
 

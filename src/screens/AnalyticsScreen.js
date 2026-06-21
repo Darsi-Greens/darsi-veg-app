@@ -9,6 +9,9 @@ import {
   serverTimestamp, query, where,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { LocalDB }  from '../services/LocalDB';
+import { SyncQueue } from '../services/SyncQueue';
+import SyncIndicator from '../components/SyncIndicator';
 
 function todayStr() {
   const d = new Date();
@@ -237,24 +240,30 @@ export default function AnalyticsScreen() {
     const amt = parseFloat(expAmount);
     if (!amt || amt <= 0) { Alert.alert('మొత్తం చేర్చండి'); return; }
     setSavingExp(true);
+
+    const expData = {
+      expense_date: todayStr(),
+      type:         expType,
+      amount:       amt,
+      note:         expNote,
+    };
+
+    // 1. Save locally + update UI immediately
+    const localId = `local_exp_${Date.now()}`;
+    await LocalDB.append('today_expenses', { ...expData, localId, saved_at: new Date().toISOString() });
+    const newExp = { id: localId, ...expData };
+    setExpenses((p) => [...p, newExp]);
+    setTodayData((p) => p ? { ...p, totalExpenses: p.totalExpenses + amt, netProfit: p.netProfit - amt } : p);
+    setExpenseModal(false);
+    setExpAmount('');
+    setExpNote('');
+    setSavingExp(false);
+
+    // 2. Sync to Firestore in background
     try {
-      const docRef = await addDoc(collection(db, 'daily_expenses'), {
-        expense_date: todayStr(),
-        type:         expType,
-        amount:       amt,
-        note:         expNote,
-        created_at:   serverTimestamp(),
-      });
-      const newExp = { id: docRef.id, expense_date: todayStr(), type: expType, amount: amt, note: expNote };
-      setExpenses((p) => [...p, newExp]);
-      setTodayData((p) => p ? { ...p, totalExpenses: p.totalExpenses + amt, netProfit: p.netProfit - amt } : p);
-      setExpenseModal(false);
-      setExpAmount('');
-      setExpNote('');
+      await addDoc(collection(db, 'daily_expenses'), { ...expData, created_at: serverTimestamp() });
     } catch {
-      Alert.alert('లోపం', 'ఖర్చు నమోదు విఫలమైంది.');
-    } finally {
-      setSavingExp(false);
+      await SyncQueue.add({ collectionName: 'daily_expenses', data: expData });
     }
   };
 
@@ -292,8 +301,11 @@ export default function AnalyticsScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Text style={s.headerTitle}>నివేదిక</Text>
-        <Text style={s.headerSub}>{todayStr()}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={s.headerTitle}>నివేదిక</Text>
+          <Text style={s.headerSub}>{todayStr()}</Text>
+        </View>
+        <SyncIndicator />
       </View>
 
       {/* Tab bar */}

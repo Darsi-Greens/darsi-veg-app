@@ -8,6 +8,9 @@ import {
   collection, doc, setDoc, getDocs, serverTimestamp, query, where,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { LocalDB }  from '../services/LocalDB';
+import { SyncQueue } from '../services/SyncQueue';
+import SyncIndicator from '../components/SyncIndicator';
 
 const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
 
@@ -109,28 +112,50 @@ export default function SellingPricesScreen() {
 
   const handleSave = async () => {
     setSaving(true);
+    const dateStr = todayStr();
+
+    // Build prices data
+    const pricesMap = {};
+    vegetables.forEach((veg) => {
+      pricesMap[veg.id] = {
+        veg_id:      veg.id,
+        teluguName:  veg.name_te,
+        englishName: veg.name_en,
+        sell_price:  parseFloat(sellPrices[veg.id]) || 0,
+        price:       parseFloat(sellPrices[veg.id]) || 0,
+        unit:        veg.unit ?? 'kg',
+      };
+    });
+
+    // 1. Save to LocalDB immediately
+    await LocalDB.set(`prices_${dateStr}`, pricesMap);
+
+    // 2. Update UI immediately
+    const now = new Date().toLocaleTimeString('te-IN', { hour: '2-digit', minute: '2-digit' });
+    setLastSaved(now);
+    setEditMode({});
+    setSaving(false);
+
+    // 3. Sync to Firestore in background
     try {
-      const dateStr = todayStr();
       await Promise.all(
         vegetables.map((veg) =>
           setDoc(doc(db, 'prices', dateStr, 'vegetables', veg.id), {
-            veg_id:      veg.id,
-            teluguName:  veg.name_te,
-            englishName: veg.name_en,
-            sell_price:  parseFloat(sellPrices[veg.id]) || 0,
-            price:       parseFloat(sellPrices[veg.id]) || 0,
-            unit:        veg.unit ?? 'kg',
-            updatedAt:   serverTimestamp(),
+            ...pricesMap[veg.id],
+            updatedAt: serverTimestamp(),
           })
         )
       );
-      setLastSaved(new Date().toLocaleTimeString('te-IN', { hour: '2-digit', minute: '2-digit' }));
-      setEditMode({}); // All rows go to view mode after save
-      Alert.alert('సేవ్ అయింది! ✓', `ఈరోజు అమ్మకం ధరలు సేవ్ అయ్యాయి.\nSelling prices saved for ${todayStr()}.`);
     } catch {
-      Alert.alert('లోపం', 'సేవ్ విఫలమైంది. Connection check చేయండి.');
-    } finally {
-      setSaving(false);
+      // Queue each price doc for retry
+      for (const veg of vegetables) {
+        await SyncQueue.add({
+          type:  'setDoc',
+          path:  ['prices', dateStr, 'vegetables', veg.id],
+          data:  pricesMap[veg.id],
+          merge: true,
+        });
+      }
     }
   };
 
@@ -148,7 +173,7 @@ export default function SellingPricesScreen() {
           <Text style={styles.englishName}>{item.name_en}</Text>
           {buyPrice ? (
             <Text style={styles.buyHint}>
-              కొన్న ధర: ₹{buyPrice}{margin !== null ? `  ·  లాభం: ₹${margin.toFixed(0)}` : ''}
+              కొనుగోలు ధర: ₹{buyPrice}{margin !== null ? `  ·  లాభం: ₹${margin.toFixed(0)}` : ''}
             </Text>
           ) : null}
         </View>
@@ -156,17 +181,22 @@ export default function SellingPricesScreen() {
         {isEditing ? (
           // Edit mode — show TextInput
           <View style={styles.priceCol}>
-            <Text style={styles.rupee}>₹</Text>
-            <TextInput
-              style={[styles.input, margin !== null && margin < 0 && styles.inputLoss]}
-              keyboardType="decimal-pad"
-              placeholder="0"
-              placeholderTextColor="#aaa"
-              value={sellVal}
-              onChangeText={(v) => handleChange(item.id, v)}
-              returnKeyType="next"
-            />
-            <Text style={styles.unit}>/{UNIT_TE[item.unit] ?? 'కేజీ'}</Text>
+            <View>
+              <Text style={styles.priceLabel}>అమ్మకపు ధర · Selling price per kg</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={styles.rupee}>₹</Text>
+                <TextInput
+                  style={[styles.input, margin !== null && margin < 0 && styles.inputLoss]}
+                  keyboardType="decimal-pad"
+                  placeholder={buyPrice ? `కొనుగోలు ధర: ₹${buyPrice}` : '0'}
+                  placeholderTextColor="#aaa"
+                  value={sellVal}
+                  onChangeText={(v) => handleChange(item.id, v)}
+                  returnKeyType="next"
+                />
+                <Text style={styles.unit}>/{UNIT_TE[item.unit] ?? 'కేజీ'}</Text>
+              </View>
+            </View>
           </View>
         ) : (
           // View mode — show price text + pencil edit button
@@ -190,8 +220,11 @@ export default function SellingPricesScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>ఈరోజు ధరలు</Text>
-          <Text style={styles.headerSub}>Today's Selling Prices</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>ఈరోజు ధరలు</Text>
+            <Text style={styles.headerSub}>Today's Selling Prices</Text>
+          </View>
+          <SyncIndicator />
         </View>
         <ActivityIndicator style={{ marginTop: 48 }} size="large" color="#2d6a4f" />
       </SafeAreaView>
@@ -202,9 +235,12 @@ export default function SellingPricesScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>ఈరోజు ధరలు</Text>
-          <Text style={styles.headerSub}>Today's Selling Prices — {todayStr()}</Text>
-          {lastSaved ? <Text style={styles.savedAt}>చివరిసారి సేవ్: {lastSaved}</Text> : null}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>ఈరోజు ధరలు</Text>
+            <Text style={styles.headerSub}>Today's Selling Prices — {todayStr()}</Text>
+            {lastSaved ? <Text style={styles.savedAt}>చివరిసారి సేవ్: {lastSaved}</Text> : null}
+          </View>
+          <SyncIndicator />
         </View>
 
         {Object.keys(buyPrices).length === 0 && (
@@ -270,8 +306,9 @@ const styles = StyleSheet.create({
   buyHint:     { fontSize: 11, color: '#2d6a4f', marginTop: 3, fontWeight: '500' },
 
   // Edit mode — TextInput
-  priceCol: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  rupee:    { fontSize: 18, color: '#2d6a4f', fontWeight: '600' },
+  priceCol:   { alignItems: 'flex-end' },
+  priceLabel: { fontSize: 10, color: '#888', marginBottom: 4, textAlign: 'right' },
+  rupee:      { fontSize: 18, color: '#2d6a4f', fontWeight: '600' },
   input: {
     width: 72, height: 44,
     borderWidth: 1.5, borderColor: '#b7e4c7', borderRadius: 8,

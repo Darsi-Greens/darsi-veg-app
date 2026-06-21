@@ -2,14 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,
   SafeAreaView, Alert, Modal, TextInput, ScrollView,
-  ActivityIndicator, Platform, Switch,
+  ActivityIndicator, Platform, Switch, Dimensions,
 } from 'react-native';
 import {
   collection, addDoc, updateDoc, getDocs, doc,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { LocalDB }  from '../services/LocalDB';
+import { SyncQueue } from '../services/SyncQueue';
+import SyncIndicator from '../components/SyncIndicator';
 
+const SCREEN_W = Dimensions.get('window').width;
 const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
 
 const FALLBACK_VEGETABLES = [
@@ -39,32 +43,31 @@ function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-
 function fmtTime(ts) {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   const h = d.getHours(), m = d.getMinutes();
   return `${String(h % 12 || 12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 }
-
 function fmtDate(dateStr) {
   if (!dateStr) return '';
   if (dateStr === todayStr()) return 'ఈరోజు';
   const d = new Date(dateStr + 'T00:00:00');
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
-
 const newItem = () => ({ veg: null, qty: '', price: '', lineTotal: 0 });
 
 export default function OrdersScreen() {
   const [orders,         setOrders]        = useState([]);
   const [vegetables,     setVegs]          = useState([]);
+  const [vendors,        setVendors]       = useState([]);
   const [loading,        setLoading]       = useState(true);
   const [toggling,       setToggling]      = useState(null);
   const [showAdd,        setShowAdd]       = useState(false);
 
   // Add-order form state
-  const [formVendorName, setFormVendorName] = useState('');
+  const [selectedVendor, setSelectedVendor] = useState(null);
+  const [vendorSearch,   setVendorSearch]   = useState('');
   const [formItems,      setFormItems]      = useState([newItem()]);
   const [saving,         setSaving]         = useState(false);
   const [pickerIdx,      setPickerIdx]      = useState(null);
@@ -73,19 +76,16 @@ export default function OrdersScreen() {
   const loadAll = useCallback(async () => {
     setLoading(true);
 
-    // Load vegetables — fall back to hardcoded list if Firestore empty or offline
-    try {
-      const snap = await getDocs(collection(db, 'vegetables'));
-      const list = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .filter((v) => v.active !== false)
-        .sort((a, b) => a.name_en.localeCompare(b.name_en));
-      setVegs(list.length ? list : FALLBACK_VEGETABLES);
-    } catch {
-      setVegs(FALLBACK_VEGETABLES);
-    }
+    // Vendors — show cached instantly, refresh Firestore in background
+    const cachedVendors = await LocalDB.get('cache_vendors');
+    if (cachedVendors) setVendors(cachedVendors.filter((v) => v.active !== false));
 
-    // Load orders — no orderBy to avoid requiring a Firestore index; sort client-side
+    // Vegetables — show cached instantly
+    const cachedVegs = await LocalDB.get('cache_vegetables');
+    if (cachedVegs?.length) setVegs(cachedVegs);
+    else setVegs(FALLBACK_VEGETABLES);
+
+    // Load orders — sort client-side, no orderBy to avoid needing composite index
     try {
       const snap = await getDocs(collection(db, 'vendor_orders'));
       const today = todayStr();
@@ -93,36 +93,69 @@ export default function OrdersScreen() {
         .map((d) => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.placed_at?.toMillis?.() ?? 0) - (a.placed_at?.toMillis?.() ?? 0));
       setOrders(all.filter((o) => o.status !== 'received' || o.order_date === today));
-    } catch {
-      /* offline — show empty */
-    }
+    } catch { /* offline — orders stay empty or from prev load */ }
+
+    // Background vendor refresh from Firestore
+    try {
+      const snap = await getDocs(collection(db, 'vendors'));
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((v) => v.active !== false);
+      setVendors(list);
+      await LocalDB.set('cache_vendors', snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    } catch { /* keep cache */ }
+
+    // Background veg refresh
+    try {
+      const snap = await getDocs(collection(db, 'vegetables'));
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((v) => v.active !== false);
+      if (list.length) {
+        setVegs(list);
+        await LocalDB.set('cache_vegetables', list);
+      }
+    } catch { /* keep cache / fallback */ }
 
     setLoading(false);
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  // ── Toggle received ───────────────────────────────────────────────────────────
+  // ── Toggle received ─────────────────────────────────────────────────────────
 
   const toggleReceived = async (order) => {
     const newStatus = order.status === 'received' ? 'placed' : 'received';
     setToggling(order.id);
+    // Optimistic update
+    setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: newStatus } : o));
     try {
       await updateDoc(doc(db, 'vendor_orders', order.id), {
         status:      newStatus,
         received_at: newStatus === 'received' ? serverTimestamp() : null,
       });
-      setOrders((prev) =>
-        prev.map((o) => o.id === order.id ? { ...o, status: newStatus } : o)
-      );
     } catch {
+      // Revert on failure
+      setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: order.status } : o));
       Alert.alert('లోపం', 'అప్‌డేట్ విఫలమైంది. Connection check చేయండి.');
     } finally {
       setToggling(null);
     }
   };
 
-  // ── Add order form helpers ────────────────────────────────────────────────────
+  // ── Test button — diagnose Firebase write ───────────────────────────────────
+
+  const handleTestWrite = async () => {
+    const start = Date.now();
+    try {
+      await addDoc(collection(db, '_test_writes'), {
+        msg: 'OrdersScreen test write',
+        ts:  serverTimestamp(),
+      });
+      const ms = Date.now() - start;
+      Alert.alert('Firebase OK ✅', `Write succeeded in ${ms}ms.\nCheck Firestore _test_writes collection.`);
+    } catch (e) {
+      Alert.alert('Firebase FAIL ❌', `Error: ${e.message}`);
+    }
+  };
+
+  // ── Add order form helpers ──────────────────────────────────────────────────
 
   const updateField = (idx, field, value) => {
     setFormItems((prev) => {
@@ -149,13 +182,16 @@ export default function OrdersScreen() {
   const grandTotal = formItems.reduce((s, i) => s + i.lineTotal, 0);
 
   const resetForm = () => {
-    setFormVendorName('');
+    setSelectedVendor(null);
+    setVendorSearch('');
     setFormItems([newItem()]);
   };
 
+  // ── Local-first save ────────────────────────────────────────────────────────
+
   const handleSave = async () => {
-    if (!formVendorName.trim()) {
-      Alert.alert('వెండర్ లేదు', 'సరఫరాదారుడి పేరు నమోదు చేయండి.');
+    if (!selectedVendor) {
+      Alert.alert('వెండర్ ఎంచుకోండి · Select vendor', 'సరఫరాదారుని ఎంచుకోండి.');
       return;
     }
     const valid = formItems.filter((i) => i.veg && parseFloat(i.qty) > 0);
@@ -164,51 +200,54 @@ export default function OrdersScreen() {
       return;
     }
     setSaving(true);
+
+    const orderData = {
+      vendor_id:      selectedVendor.id,
+      vendor_name:    selectedVendor.name,
+      vendor_name_en: selectedVendor.name_en ?? '',
+      order_date:     todayStr(),
+      items: valid.map((i) => ({
+        veg_id:      i.veg.id,
+        veg_name_en: i.veg.name_en,
+        veg_name_te: i.veg.name_te,
+        quantity:    parseFloat(i.qty),
+        unit:        i.veg.unit ?? 'kg',
+        buy_price:   parseFloat(i.price) || 0,
+        line_total:  i.lineTotal,
+      })),
+      total_amount:   parseFloat(grandTotal.toFixed(2)),
+      status:         'placed',
+      payment_status: 'pending',
+      received_at:    null,
+    };
+
+    // 1. Save to LocalDB immediately
+    const localId = `local_${Date.now()}`;
+    await LocalDB.append('pending_orders', { ...orderData, localId, saved_at: new Date().toISOString() });
+
+    // 2. Update UI immediately
+    setOrders((prev) => [{
+      id:          localId,
+      ...orderData,
+      placed_at:   null,
+    }, ...prev]);
+    setShowAdd(false);
+    resetForm();
+    setSaving(false);
+
+    // 3. Sync to Firestore in background
     try {
-      const docRef = await addDoc(collection(db, 'vendor_orders'), {
-        vendor_id:      '',
-        vendor_name:    formVendorName.trim(),
-        order_date:     todayStr(),
-        items: valid.map((i) => ({
-          veg_id:      i.veg.id,
-          veg_name_en: i.veg.name_en,
-          veg_name_te: i.veg.name_te,
-          quantity:    parseFloat(i.qty),
-          unit:        i.veg.unit ?? 'kg',
-          buy_price:   parseFloat(i.price) || 0,
-          line_total:  i.lineTotal,
-        })),
-        total_amount:   parseFloat(grandTotal.toFixed(2)),
-        status:         'placed',
-        placed_at:      serverTimestamp(),
-        received_at:    null,
-        payment_status: 'pending',
-        created_at:     serverTimestamp(),
+      await addDoc(collection(db, 'vendor_orders'), {
+        ...orderData,
+        placed_at:  serverTimestamp(),
+        created_at: serverTimestamp(),
       });
-      setOrders((prev) => [{
-        id:           docRef.id,
-        vendor_name:  formVendorName.trim(),
-        order_date:   todayStr(),
-        items: valid.map((i) => ({
-          veg_name_te: i.veg.name_te,
-          quantity:    parseFloat(i.qty),
-          unit:        i.veg.unit ?? 'kg',
-          buy_price:   parseFloat(i.price) || 0,
-        })),
-        total_amount: parseFloat(grandTotal.toFixed(2)),
-        status:       'placed',
-        placed_at:    null,
-      }, ...prev]);
-      setShowAdd(false);
-      resetForm();
     } catch {
-      Alert.alert('లోపం', 'సేవ్ విఫలమైంది. Connection check చేయండి.');
-    } finally {
-      setSaving(false);
+      await SyncQueue.add({ collectionName: 'vendor_orders', data: { ...orderData, placed_at: new Date().toISOString() } });
     }
   };
 
-  // ── Render helpers ────────────────────────────────────────────────────────────
+  // ── Render helpers ──────────────────────────────────────────────────────────
 
   const pending  = orders.filter((o) => o.status !== 'received');
   const received = orders.filter((o) => o.status === 'received');
@@ -217,6 +256,13 @@ export default function OrdersScreen() {
     !vegSearch.trim() ||
     v.name_te.includes(vegSearch) ||
     v.name_en.toLowerCase().includes(vegSearch.toLowerCase())
+  );
+
+  const filteredVendors = vendors.filter((v) =>
+    !vendorSearch.trim() ||
+    v.name.includes(vendorSearch) ||
+    (v.name_en ?? '').toLowerCase().includes(vendorSearch.toLowerCase()) ||
+    (v.area ?? '').toLowerCase().includes(vendorSearch.toLowerCase())
   );
 
   const renderOrder = (order) => {
@@ -229,7 +275,7 @@ export default function OrdersScreen() {
             <Text style={styles.orderVendor}>{order.vendor_name}</Text>
             <Text style={styles.orderMeta}>
               {fmtDate(order.order_date)}
-              {order.placed_at ? `  ·  ఆర్డర్: ${fmtTime(order.placed_at)}` : ''}
+              {order.placed_at ? `  ·  ఆర్డర్: ${fmtTime(order.placed_at)}` : '  ·  స్థానికంగా సేవ్'}
               {isReceived && order.received_at ? `  ·  అందింది: ${fmtTime(order.received_at)}` : ''}
             </Text>
           </View>
@@ -268,10 +314,13 @@ export default function OrdersScreen() {
     );
   };
 
-  if (loading) {
+  if (loading && orders.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}><Text style={styles.headerTitle}>ఆర్డర్లు</Text></View>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>ఆర్డర్లు</Text>
+          <SyncIndicator />
+        </View>
         <ActivityIndicator style={{ marginTop: 48 }} size="large" color="#2d6a4f" />
       </SafeAreaView>
     );
@@ -284,6 +333,10 @@ export default function OrdersScreen() {
           <Text style={styles.headerTitle}>ఆర్డర్లు</Text>
           <Text style={styles.headerSub}>Orders — {todayStr()}</Text>
         </View>
+        <TouchableOpacity style={styles.testBtn} onPress={handleTestWrite}>
+          <Text style={styles.testBtnText}>🔧 Test</Text>
+        </TouchableOpacity>
+        <SyncIndicator />
         <TouchableOpacity style={styles.addBtn} onPress={() => setShowAdd(true)}>
           <Text style={styles.addBtnText}>+ ఆర్డర్</Text>
         </TouchableOpacity>
@@ -327,28 +380,74 @@ export default function OrdersScreen() {
               <Text style={styles.headerTitle}>కొత్త ఆర్డర్</Text>
               <Text style={styles.headerSub}>New Order</Text>
             </View>
-            <TouchableOpacity
-              onPress={() => { setShowAdd(false); resetForm(); }}
-              style={styles.closeBtn}
-            >
+            <TouchableOpacity onPress={() => { setShowAdd(false); resetForm(); }} style={styles.closeBtn}>
               <Text style={styles.closeBtnText}>✕</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            {/* Vendor — free text input, no Firestore lookup required */}
-            <Text style={styles.label}>సరఫరాదారుడు / Vendor</Text>
-            <TextInput
-              style={styles.vendorInput}
-              placeholder="వెండర్ పేరు టైప్ చేయండి (ఉదా: రాజు వెజ్)"
-              placeholderTextColor="#888"
-              value={formVendorName}
-              onChangeText={setFormVendorName}
-              returnKeyType="next"
-              autoCapitalize="words"
-            />
 
-            {/* Items */}
+            {/* ── Vendor selection ── */}
+            <Text style={styles.label}>వెండర్ ఎంచుకోండి · Select vendor</Text>
+
+            {/* Selected vendor bar */}
+            {selectedVendor && (
+              <View style={styles.selectedVendorBar}>
+                <Text style={styles.selectedVendorText}>✓ {selectedVendor.name}  ·  {selectedVendor.area}</Text>
+                <TouchableOpacity onPress={() => setSelectedVendor(null)} style={styles.deselectBtn}>
+                  <Text style={styles.deselectText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!selectedVendor && (
+              <>
+                {/* Vendor search */}
+                <View style={styles.vendorSearchWrap}>
+                  <TextInput
+                    style={styles.vendorSearchInput}
+                    placeholder="వెండర్ వెతకండి · Search vendor"
+                    placeholderTextColor="#888"
+                    value={vendorSearch}
+                    onChangeText={setVendorSearch}
+                  />
+                  {vendorSearch.length > 0 && (
+                    <TouchableOpacity onPress={() => setVendorSearch('')} style={styles.clearSearchBtn}>
+                      <Text style={styles.clearSearchText}>✕</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Vendor cards — 2 columns */}
+                {filteredVendors.length === 0 ? (
+                  <View style={styles.noVendorBox}>
+                    <Text style={styles.noVendorText}>వెండర్లు లేరు · No vendors</Text>
+                    <Text style={styles.noVendorSub}>Admin ని సంప్రదించండి · Contact admin</Text>
+                  </View>
+                ) : (
+                  <View style={styles.vendorGrid}>
+                    {filteredVendors.map((v) => {
+                      const isSelected = selectedVendor?.id === v.id;
+                      return (
+                        <TouchableOpacity
+                          key={v.id}
+                          style={[styles.vendorCard, isSelected && styles.vendorCardSel]}
+                          onPress={() => setSelectedVendor(v)}
+                          activeOpacity={0.75}
+                        >
+                          {isSelected && <Text style={styles.vendorTick}>✓</Text>}
+                          <Text style={styles.vendorCardName}>{v.name}</Text>
+                          <Text style={styles.vendorCardSub} numberOfLines={1}>{v.area}</Text>
+                          {v.phone ? <Text style={styles.vendorCardPhone}>{v.phone}</Text> : null}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* ── Vegetable items ── */}
             <Text style={[styles.label, { marginTop: 20 }]}>కూరగాయలు / Vegetables</Text>
             {formItems.map((item, idx) => (
               <View key={idx} style={styles.itemCard}>
@@ -356,10 +455,7 @@ export default function OrdersScreen() {
                   style={[styles.vegPickBtn, item.veg && styles.vegPickBtnFilled]}
                   onPress={() => setPickerIdx(idx)}
                 >
-                  <Text
-                    style={[styles.vegPickText, item.veg && styles.vegPickTextFilled]}
-                    numberOfLines={1}
-                  >
+                  <Text style={[styles.vegPickText, item.veg && styles.vegPickTextFilled]} numberOfLines={1}>
                     {item.veg
                       ? `${item.veg.emoji ?? '🥬'}  ${item.veg.name_te}  /  ${item.veg.name_en}`
                       : '+ కూరగాయ ఎంచుకోండి'}
@@ -368,7 +464,7 @@ export default function OrdersScreen() {
 
                 <View style={styles.inputRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.inputLabel}>పరిమాణం</Text>
+                    <Text style={styles.inputLabel}>ఎన్ని కిలోలు? · How many kg?</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <TextInput
                         style={[styles.numInput, { flex: 1 }]}
@@ -387,11 +483,11 @@ export default function OrdersScreen() {
                     </View>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.inputLabel}>కొనుగోలు ₹</Text>
+                    <Text style={styles.inputLabel}>కొనుగోలు ధర · Buying price per kg</Text>
                     <TextInput
                       style={styles.numInput}
                       keyboardType="numeric"
-                      placeholder="0.00"
+                      placeholder="₹"
                       placeholderTextColor="#bbb"
                       value={item.price}
                       onChangeText={(v) => {
@@ -407,9 +503,7 @@ export default function OrdersScreen() {
                 </View>
 
                 <TouchableOpacity
-                  onPress={() => setFormItems((p) =>
-                    p.length === 1 ? [newItem()] : p.filter((_, i) => i !== idx)
-                  )}
+                  onPress={() => setFormItems((p) => p.length === 1 ? [newItem()] : p.filter((_, i) => i !== idx))}
                   style={{ alignSelf: 'flex-end', marginTop: 8 }}
                 >
                   <Text style={{ fontSize: 12, color: '#e74c3c', fontWeight: '600' }}>✕ తొలగించు</Text>
@@ -417,10 +511,7 @@ export default function OrdersScreen() {
               </View>
             ))}
 
-            <TouchableOpacity
-              style={styles.addItemBtn}
-              onPress={() => setFormItems((p) => [...p, newItem()])}
-            >
+            <TouchableOpacity style={styles.addItemBtn} onPress={() => setFormItems((p) => [...p, newItem()])}>
               <Text style={styles.addItemText}>+ వేరొక కూరగాయ</Text>
             </TouchableOpacity>
 
@@ -435,12 +526,12 @@ export default function OrdersScreen() {
               disabled={saving}
             >
               <Text style={styles.saveBtnText}>
-                {saving ? 'సేవ్ అవుతోంది...' : '✓ ఆర్డర్ పెట్టండి / Place Order'}
+                {saving ? 'సేవ్ అవుతోంది...' : 'ఆర్డర్ సేవ్ చేయండి · Save Order'}
               </Text>
             </TouchableOpacity>
           </ScrollView>
 
-          {/* ── Veg picker sheet — nested INSIDE Add Order Modal so Android renders it correctly ── */}
+          {/* ── Veg picker sheet — nested inside Add Order Modal ── */}
           <Modal
             visible={pickerIdx !== null}
             transparent
@@ -489,21 +580,25 @@ export default function OrdersScreen() {
   );
 }
 
+const VENDOR_CARD_W = (SCREEN_W - 48) / 2;
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f7f0' },
 
   header: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#1a472a',
-    paddingVertical: 16, paddingHorizontal: 20,
+    paddingVertical: 16, paddingHorizontal: 16, gap: 8,
   },
-  headerTitle: { fontSize: 26, fontWeight: 'bold', color: '#fff' },
-  headerSub:   { fontSize: 13, color: '#a8d5b5', marginTop: 2 },
+  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
+  headerSub:   { fontSize: 12, color: '#a8d5b5', marginTop: 2 },
 
-  addBtn:       { backgroundColor: '#52b788', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  addBtnText:   { fontSize: 14, fontWeight: '700', color: '#fff' },
-  closeBtn:     { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  closeBtnText: { fontSize: 16, color: '#fff', fontWeight: '700' },
+  testBtn:     { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  testBtnText: { fontSize: 12, color: '#fff', fontWeight: '600' },
+  addBtn:      { backgroundColor: '#52b788', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  addBtnText:  { fontSize: 14, fontWeight: '700', color: '#fff' },
+  closeBtn:    { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  closeBtnText:{ fontSize: 16, color: '#fff', fontWeight: '700' },
 
   scroll: { padding: 16, paddingBottom: 48 },
 
@@ -515,7 +610,7 @@ const styles = StyleSheet.create({
   orderCard: {
     backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 12,
     borderLeftWidth: 4, borderLeftColor: '#f6a623',
-    elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   orderCardReceived: { borderLeftColor: '#2d6a4f', backgroundColor: '#f8fff8' },
   orderHeader:  { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
@@ -523,41 +618,50 @@ const styles = StyleSheet.create({
   orderMeta:    { fontSize: 12, color: '#888', marginTop: 2 },
   toggleWrap:   { alignItems: 'center', gap: 2 },
   toggleLabel:  { fontSize: 11, color: '#888', fontWeight: '600' },
-  toggleLabelOn: { color: '#2d6a4f' },
+  toggleLabelOn:{ color: '#2d6a4f' },
 
-  itemRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
-    gap: 8,
-  },
+  itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', gap: 8 },
   itemName:  { flex: 2, fontSize: 14, fontWeight: '600', color: '#1a472a' },
   itemQty:   { flex: 1, fontSize: 13, color: '#555', textAlign: 'center' },
   itemPrice: { flex: 1, fontSize: 13, color: '#666', textAlign: 'center' },
   itemTotal: { flex: 1, fontSize: 13, fontWeight: '700', color: '#1a472a', textAlign: 'right' },
-
   orderFooter: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 },
   orderTotal:  { fontSize: 15, fontWeight: '700', color: '#1a472a' },
 
   // Form
   label: { fontSize: 12, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
 
-  vendorInput: {
-    backgroundColor: '#fff', borderRadius: 12, borderWidth: 2, borderColor: '#b7e4c7',
-    paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-    fontSize: 16, color: '#1a1a1a', marginBottom: 4,
-  },
+  // Vendor search + grid
+  vendorSearchWrap:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, borderWidth: 1.5, borderColor: '#b7e4c7', marginBottom: 12 },
+  vendorSearchInput: { flex: 1, paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 12 : 10, fontSize: 15, color: '#1a1a1a' },
+  clearSearchBtn:    { padding: 10 },
+  clearSearchText:   { color: '#888', fontSize: 16 },
 
-  itemCard: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10,
-    elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
-  },
+  vendorGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
+  vendorCard:      { width: VENDOR_CARD_W, minHeight: 80, backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 2, borderColor: '#e0e0e0', justifyContent: 'center', elevation: 1 },
+  vendorCardSel:   { borderColor: '#2d6a4f', backgroundColor: '#e8f5ec' },
+  vendorTick:      { position: 'absolute', top: 6, right: 10, fontSize: 16, color: '#2d6a4f', fontWeight: '900' },
+  vendorCardName:  { fontSize: 18, fontWeight: '700', color: '#1a472a' },
+  vendorCardSub:   { fontSize: 12, color: '#666', marginTop: 2 },
+  vendorCardPhone: { fontSize: 12, color: '#888', marginTop: 2 },
+
+  selectedVendorBar:  { backgroundColor: '#2d6a4f', borderRadius: 10, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12 },
+  selectedVendorText: { flex: 1, color: '#fff', fontSize: 15, fontWeight: '700' },
+  deselectBtn:        { padding: 4 },
+  deselectText:       { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  noVendorBox:  { backgroundColor: '#fff3e0', borderRadius: 10, padding: 20, alignItems: 'center', marginBottom: 12 },
+  noVendorText: { fontSize: 16, fontWeight: '700', color: '#e65100' },
+  noVendorSub:  { fontSize: 13, color: '#888', marginTop: 4 },
+
+  itemCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, elevation: 1 },
   vegPickBtn:        { borderWidth: 2, borderColor: '#b7e4c7', borderStyle: 'dashed', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 10, backgroundColor: '#f8fff8' },
   vegPickBtnFilled:  { borderStyle: 'solid', borderColor: '#2d6a4f', backgroundColor: '#e8f5ec' },
   vegPickText:       { fontSize: 14, color: '#888' },
   vegPickTextFilled: { color: '#1a472a', fontWeight: '600' },
 
   inputRow:   { flexDirection: 'row', gap: 10, alignItems: 'flex-end' },
-  inputLabel: { fontSize: 11, color: '#666', fontWeight: '600', marginBottom: 4, textTransform: 'uppercase' },
+  inputLabel: { fontSize: 11, color: '#666', fontWeight: '600', marginBottom: 4 },
   numInput:   { height: 44, borderWidth: 1.5, borderColor: '#b7e4c7', borderRadius: 8, paddingHorizontal: 10, fontSize: 16, fontWeight: '600', color: '#1a1a1a', backgroundColor: '#f8fff8', textAlign: 'center' },
   lineTotal:  { height: 44, lineHeight: 44, fontSize: 16, fontWeight: '700', color: '#1a472a', textAlign: 'center' },
 
