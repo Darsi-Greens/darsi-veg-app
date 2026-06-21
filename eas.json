@@ -1,44 +1,33 @@
 {
   "cli": {
-    "version": ">= 13.0.0"
+    "version": ">= 20.0.0"
   },
   "build": {
     "development": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "APP_ENV": "development"
-      },
-      "android": {
-        "buildType": "apk",
-        "packageName": "com.nrbveg.dev"
       }
     },
     "staging": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "APP_ENV": "staging"
-      },
-      "android": {
-        "buildType": "apk",
-        "packageName": "com.nrbveg.staging"
       }
     },
     "production": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "APP_ENV": "production"
-      },
-      "android": {
-        "buildType": "apk",
-        "packageName": "com.nrbveg.app"
-      }
-    }
-  },
-  "submit": {
-    "production": {
-      "android": {
-        "serviceAccountKeyPath": "../darsi-veg-backend/serviceAccountKey.json",
-        "track": "internal"
       }
     }
   }
