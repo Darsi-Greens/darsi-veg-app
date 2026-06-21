@@ -29,7 +29,6 @@ loadEnvFile(`.env.${APP_ENV}`);
 const envConfig = {
   development: {
     name:           process.env.EXPO_PUBLIC_APP_NAME ?? 'NRB Veg DEV',
-    slug:           'darsi-veg-app-dev',
     androidPackage: 'com.nrbveg.dev',
     icon:           './assets/icon-dev.png',
     adaptiveIcon:   './assets/adaptive-icon-dev.png',
@@ -39,7 +38,6 @@ const envConfig = {
   },
   staging: {
     name:           process.env.EXPO_PUBLIC_APP_NAME ?? 'NRB Veg BETA',
-    slug:           'darsi-veg-app-staging',
     androidPackage: 'com.nrbveg.staging',
     icon:           './assets/icon-staging.png',
     adaptiveIcon:   './assets/adaptive-icon-staging.png',
@@ -49,7 +47,6 @@ const envConfig = {
   },
   production: {
     name:           process.env.EXPO_PUBLIC_APP_NAME ?? 'NRB Vegetables',
-    slug:           'darsi-veg-app',
     androidPackage: 'com.nrbveg.app',
     icon:           './assets/icon.png',
     adaptiveIcon:   './assets/adaptive-icon.png',
@@ -64,7 +61,7 @@ const cfg = envConfig[APP_ENV] ?? envConfig.development;
 module.exports = {
   expo: {
     name:        cfg.name,
-    slug:        cfg.slug,
+    slug:        'nrb-vegetables',
     owner:       'nrbvegetables-darsi',
     version:     `1.0.0${cfg.versionSuffix}`,
     orientation: 'portrait',
