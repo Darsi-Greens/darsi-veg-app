@@ -3,10 +3,18 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "APP_ENV=development expo start",
+    "start:dev": "APP_ENV=development expo start",
+    "start:staging": "APP_ENV=staging expo start",
+    "start:prod": "APP_ENV=production expo start",
+    "android": "APP_ENV=development expo start --android",
+    "ios": "APP_ENV=development expo start --ios",
+    "web": "expo start --web",
+    "build:dev": "eas build -p android --profile development",
+    "build:staging": "eas build -p android --profile staging",
+    "build:prod": "eas build -p android --profile production",
+    "icons": "node scripts/generate-icons.js",
+    "export:android": "APP_ENV=production expo export -p android"
   },
   "dependencies": {
     "@babel/plugin-transform-class-properties": "^8.0.1",

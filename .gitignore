@@ -10,10 +10,17 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Environment variables
+# Environment variables — NEVER commit these
 .env
 .env.local
 .env.*.local
+.env.development
+.env.staging
+.env.production
+# Example files (no real secrets) are committed and safe
+# .env.development.example ✓ tracked
+# .env.staging.example     ✓ tracked
+# .env.production.example  ✓ tracked
 
 # Native builds
 android/
