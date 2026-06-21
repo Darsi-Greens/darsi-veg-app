@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { collection, addDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 const QUEUE_KEY = '@darsi_sync_queue_v1';
@@ -34,12 +34,16 @@ export const SyncQueue = {
         if (item.attempts >= MAX_ATTEMPTS) continue; // drop after max retries
         try {
           if (item.type === 'setDoc') {
-            // For prices/{date}/vegetables/{id} style writes
             await setDoc(
               doc(db, ...item.path),
               { ...item.data, updatedAt: serverTimestamp() },
               { merge: item.merge ?? true }
             );
+          } else if (item.type === 'updateDoc') {
+            await updateDoc(doc(db, ...item.path), {
+              ...item.data,
+              updated_at: serverTimestamp(),
+            });
           } else {
             // Standard addDoc for vendor_orders, sales, stock_log, daily_expenses
             await addDoc(collection(db, item.collectionName), {

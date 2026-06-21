@@ -303,7 +303,7 @@ export default function AnalyticsScreen() {
       <View style={s.header}>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>నివేదిక</Text>
-          <Text style={s.headerSub}>{todayStr()}</Text>
+          <Text style={s.headerSub}>Analytics · {todayStr()}</Text>
         </View>
         <SyncIndicator />
       </View>

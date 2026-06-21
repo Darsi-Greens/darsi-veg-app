@@ -133,21 +133,33 @@ export default function Sales() {
   };
 
   const loadPrices = async (date) => {
+    // 1. Load from LocalDB instantly (set by SellingPricesScreen)
+    const cached = await LocalDB.get(`prices_${date}`);
+    if (cached) {
+      const byId = {}, byName = {};
+      Object.entries(cached).forEach(([id, data]) => {
+        byId[id] = data;
+        const nameKey = (data.englishName || data.veg_name_en || '').toLowerCase().trim();
+        if (nameKey) byName[nameKey] = data;
+      });
+      setPriceById(byId);
+      setPriceByName(byName);
+    }
+
+    // 2. Refresh from Firestore in background
     try {
       const snap = await getDocs(collection(db, 'prices', date, 'vegetables'));
-      const byId   = {};
-      const byName = {};
+      const byId = {}, byName = {};
       snap.forEach((d) => {
         const data = d.data();
         byId[d.id] = data;
-        // MorningPrices.js stores 'englishName'; schema uses 'veg_name_en' — handle both
         const nameKey = (data.englishName || data.veg_name_en || '').toLowerCase().trim();
         if (nameKey) byName[nameKey] = data;
       });
       setPriceById(byId);
       setPriceByName(byName);
     } catch {
-      // Offline — prices will show as "ధర లేదు" until reconnected
+      // Offline — use LocalDB prices above
     }
   };
 
@@ -239,8 +251,8 @@ export default function Sales() {
     const sellPrice = getSellPrice(selected);
     if (!sellPrice) {
       Alert.alert(
-        'ధర లేదు / No Price Set',
-        'ఈ రోజు ధర నిర్ణయించబడలేదు.\nముందు ఉదయం ధరలు నిర్ణయించండి.\n\nSet today\'s morning prices first.'
+        'ధర లేదు / No Price',
+        'ధరలు స్క్రీన్‌లో ఈ కూరగాయకి ధర సెట్ చేయండి.\nSet price in the Prices tab first.'
       );
       return;
     }

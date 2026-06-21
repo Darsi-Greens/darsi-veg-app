@@ -221,8 +221,8 @@ export default function SellingPricesScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>ఈరోజు ధరలు</Text>
-            <Text style={styles.headerSub}>Today's Selling Prices</Text>
+            <Text style={styles.headerTitle}>ధరలు</Text>
+            <Text style={styles.headerSub}>Selling Prices · {todayStr()}</Text>
           </View>
           <SyncIndicator />
         </View>
@@ -236,8 +236,8 @@ export default function SellingPricesScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>ఈరోజు ధరలు</Text>
-            <Text style={styles.headerSub}>Today's Selling Prices — {todayStr()}</Text>
+            <Text style={styles.headerTitle}>ధరలు</Text>
+            <Text style={styles.headerSub}>Selling Prices · {todayStr()}</Text>
             {lastSaved ? <Text style={styles.savedAt}>చివరిసారి సేవ్: {lastSaved}</Text> : null}
           </View>
           <SyncIndicator />

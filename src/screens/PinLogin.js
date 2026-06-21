@@ -6,6 +6,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
+const APP_ENV = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
+
 const ADMIN_PIN_KEY   = 'pin_admin';
 const REGULAR_PIN_KEY = 'pin_regular';
 const DEFAULT_ADMIN   = '9999';
@@ -110,6 +112,10 @@ export default function PinLogin({ navigation }) {
           </View>
         ))}
       </View>
+
+      {APP_ENV !== 'production' && (
+        <Text style={styles.devHint}>Admin: PIN 9999  ·  Regular: PIN 1234</Text>
+      )}
     </SafeAreaView>
   );
 }
@@ -123,6 +129,7 @@ const styles = StyleSheet.create({
   dotFilled:  { backgroundColor: '#fff' },
   hint:       { color: '#a8d5b5', fontSize: 14, marginBottom: 32 },
   errorText:  { color: '#ff6b6b', fontSize: 15, fontWeight: '600', marginBottom: 32 },
+  devHint:    { color: '#74c69d', fontSize: 12, marginTop: 28, opacity: 0.8 },
   dialpad:    { gap: 12 },
   row:        { flexDirection: 'row', gap: 12 },
   key:        { width: 72, height: 72, borderRadius: 36, backgroundColor: '#2d6a4f', alignItems: 'center', justifyContent: 'center' },
