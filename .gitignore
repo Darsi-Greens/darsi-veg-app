@@ -48,3 +48,6 @@ yarn.lock
 
 # TypeScript
 *.tsbuildinfo
+
+# Generated test guide PDF (regenerate from PARENT-TEST-GUIDE.md)
+NRB-Vegetables-Parent-Test-Guide.pdf
