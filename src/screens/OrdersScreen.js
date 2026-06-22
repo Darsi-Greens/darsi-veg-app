@@ -10,8 +10,7 @@ import {
   collection, addDoc, updateDoc, getDocs, doc,
   serverTimestamp,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../firebase/config';
+import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import SyncIndicator from '../components/SyncIndicator';
@@ -73,12 +72,29 @@ function fmtPaidDate(isoStr) {
 }
 const newItem = () => ({ veg: null, qty: '1', price: '', lineTotal: 0 });
 
+// ── Cloudinary unsigned upload (no billing card, free tier) ───────────────────
+const CLOUDINARY_CLOUD_NAME    = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+function cloudinaryConfigured() {
+  return !!CLOUDINARY_CLOUD_NAME && !!CLOUDINARY_UPLOAD_PRESET;
+}
+
 async function uploadReceipt(orderId, imageUri) {
-  const response = await fetch(imageUri);
-  const blob     = await response.blob();
-  const storageRef = ref(storage, `receipts/${orderId}/${Date.now()}.jpg`);
-  await uploadBytes(storageRef, blob);
-  return await getDownloadURL(storageRef);
+  const formData = new FormData();
+  formData.append('file', { uri: imageUri, type: 'image/jpeg', name: `${orderId}_${Date.now()}.jpg` });
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  formData.append('folder', `receipts/${orderId}`);
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    { method: 'POST', body: formData }
+  );
+  const data = await res.json();
+  if (!data.secure_url) {
+    throw new Error(data.error?.message || 'Cloudinary upload failed');
+  }
+  return data.secure_url;
 }
 
 export default function OrdersScreen() {
@@ -246,6 +262,13 @@ export default function OrdersScreen() {
     const hasReceipt = order.receipt_url || order.receipt_local_uri;
     if (hasReceipt) {
       setReceiptModal(order);
+      return;
+    }
+    if (!cloudinaryConfigured()) {
+      Alert.alert(
+        'రసీదు సెటప్ కాలేదు · Receipt not set up',
+        'Cloudinary keys missing in .env. Add EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME and EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET, then restart the app.'
+      );
       return;
     }
     Alert.alert(
