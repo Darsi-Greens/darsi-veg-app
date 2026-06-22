@@ -34,6 +34,26 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+const TE_DAYS   = ['ఆదివారం', 'సోమవారం', 'మంగళవారం', 'బుధవారం', 'గురువారం', 'శుక్రవారం', 'శనివారం'];
+const EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Friendly "21 Jun 2026" for the date pill
+function friendlyDate() {
+  const d = new Date();
+  return `${d.getDate()} ${EN_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+function teluguDay() {
+  return TE_DAYS[new Date().getDay()];
+}
+
+function buildEditMode(vegList, priceMap) {
+  const initEdit = {};
+  vegList.forEach((v) => {
+    if (!priceMap[v.id] || !parseFloat(priceMap[v.id])) initEdit[v.id] = true;
+  });
+  return initEdit;
+}
+
 export default function SellingPricesScreen() {
   const [vegetables, setVegetables] = useState(DEFAULT_VEGETABLES);
   const [sellPrices, setSellPrices] = useState({});
@@ -48,46 +68,59 @@ export default function SellingPricesScreen() {
   }, []);
 
   const loadAll = async () => {
-    let vegList = DEFAULT_VEGETABLES;
-    let loaded  = {};
+    const date = todayStr();
 
+    // ── 1. INSTANT: render from local cache (no spinner wait) ────────────────
+    const cachedVegs = await LocalDB.get('cache_vegetables');
+    let vegList = (cachedVegs?.length ? cachedVegs : DEFAULT_VEGETABLES)
+      .filter((v) => v.active !== false)
+      .sort((a, b) => (a.name_en ?? '').localeCompare(b.name_en ?? ''));
+    setVegetables(vegList);
+
+    const cachedPrices = await LocalDB.get(`prices_${date}`);
+    let loaded = {};
+    if (cachedPrices) {
+      Object.entries(cachedPrices).forEach(([id, data]) => {
+        loaded[id] = String(data.sell_price ?? data.price ?? '');
+      });
+      setSellPrices(loaded);
+      setEditMode(buildEditMode(vegList, loaded));
+    }
+
+    // Show the UI immediately — Firestore refines in the background
+    setLoading(false);
+
+    // ── 2. BACKGROUND: refresh from Firestore in parallel ────────────────────
     try {
-      const vegSnap = await getDocs(collection(db, 'vegetables'));
+      const [vegSnap, priceSnap, ordSnap] = await Promise.all([
+        getDocs(collection(db, 'vegetables')),
+        getDocs(collection(db, 'prices', date, 'vegetables')),
+        getDocs(query(
+          collection(db, 'vendor_orders'),
+          where('order_date', '==', date),
+          where('status', '==', 'received'),
+        )),
+      ]);
+
       if (vegSnap.docs.length > 0) {
         vegList = vegSnap.docs
           .map((d) => ({ id: d.id, ...d.data() }))
           .filter((v) => v.active !== false)
           .sort((a, b) => (a.name_en ?? '').localeCompare(b.name_en ?? ''));
         setVegetables(vegList);
+        await LocalDB.set('cache_vegetables', vegList);
       }
-    } catch { /* use defaults */ }
 
-    try {
-      const priceSnap = await getDocs(collection(db, 'prices', todayStr(), 'vegetables'));
-      priceSnap.forEach((d) => {
-        const data = d.data();
-        loaded[d.id] = String(data.sell_price ?? data.price ?? '');
-      });
-      setSellPrices(loaded);
-    } catch { /* first run or offline */ }
-
-    // Default: view mode if price already saved today, edit mode if not
-    const initEdit = {};
-    vegList.forEach((v) => {
-      if (!loaded[v.id] || !parseFloat(loaded[v.id])) {
-        initEdit[v.id] = true;
+      if (priceSnap.docs.length > 0) {
+        loaded = {};
+        priceSnap.forEach((d) => {
+          const data = d.data();
+          loaded[d.id] = String(data.sell_price ?? data.price ?? '');
+        });
+        setSellPrices(loaded);
       }
-    });
-    setEditMode(initEdit);
+      setEditMode(buildEditMode(vegList, loaded));
 
-    try {
-      const ordSnap = await getDocs(
-        query(
-          collection(db, 'vendor_orders'),
-          where('order_date', '==', todayStr()),
-          where('status', '==', 'received'),
-        )
-      );
       const buyMap = {};
       ordSnap.docs.forEach((d) => {
         (d.data().items || []).forEach((item) => {
@@ -99,9 +132,7 @@ export default function SellingPricesScreen() {
         });
       });
       setBuyPrices(buyMap);
-    } catch { /* no orders yet */ }
-
-    setLoading(false);
+    } catch { /* offline — cached values already shown */ }
   };
 
   const handleChange = (id, value) => {
@@ -222,7 +253,11 @@ export default function SellingPricesScreen() {
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>ధరలు</Text>
-            <Text style={styles.headerSub}>Selling Prices · {todayStr()}</Text>
+            <Text style={styles.headerSub}>Today's Selling Prices</Text>
+          </View>
+          <View style={styles.datePill}>
+            <Text style={styles.datePillDay}>{teluguDay()}</Text>
+            <Text style={styles.datePillDate}>{friendlyDate()}</Text>
           </View>
           <SyncIndicator />
         </View>
@@ -237,8 +272,12 @@ export default function SellingPricesScreen() {
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>ధరలు</Text>
-            <Text style={styles.headerSub}>Selling Prices · {todayStr()}</Text>
-            {lastSaved ? <Text style={styles.savedAt}>చివరిసారి సేవ్: {lastSaved}</Text> : null}
+            <Text style={styles.headerSub}>Today's Selling Prices</Text>
+            {lastSaved ? <Text style={styles.savedAt}>✓ సేవ్ అయింది {lastSaved}</Text> : null}
+          </View>
+          <View style={styles.datePill}>
+            <Text style={styles.datePillDay}>{teluguDay()}</Text>
+            <Text style={styles.datePillDate}>{friendlyDate()}</Text>
           </View>
           <SyncIndicator />
         </View>
@@ -278,11 +317,16 @@ const styles = StyleSheet.create({
 
   header: {
     backgroundColor: '#1a472a',
-    paddingVertical: 16, paddingHorizontal: 20,
+    paddingVertical: 16, paddingHorizontal: 18,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
   },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
-  headerSub:   { fontSize: 13, color: '#a8d5b5', marginTop: 2 },
-  savedAt:     { fontSize: 12, color: '#74c69d', marginTop: 4 },
+  headerTitle: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
+  headerSub:   { fontSize: 12, color: '#a8d5b5', marginTop: 2 },
+  savedAt:     { fontSize: 12, color: '#9be7b4', marginTop: 5, fontWeight: '600' },
+
+  datePill:     { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 13, paddingVertical: 7, alignItems: 'center', minWidth: 92 },
+  datePillDay:  { fontSize: 11, color: '#2d6a4f', fontWeight: '700' },
+  datePillDate: { fontSize: 14, color: '#1a472a', fontWeight: '800', marginTop: 1 },
 
   hintBanner: {
     backgroundColor: '#fff3cd', paddingHorizontal: 16, paddingVertical: 10,

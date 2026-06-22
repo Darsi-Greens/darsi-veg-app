@@ -112,10 +112,11 @@ export default function OrdersScreen() {
   const [saving,           setSaving]          = useState(false);
 
   // Payment modal state
-  const [payModal,   setPayModal]   = useState(null); // { order } or null
-  const [payAmount,  setPayAmount]  = useState('');
-  const [payMode,    setPayMode]    = useState('cash');
-  const [payingSave, setPayingSave] = useState(false);
+  const [payModal,      setPayModal]      = useState(null); // { order } or null
+  const [payAmount,     setPayAmount]     = useState('');
+  const [payMode,       setPayMode]       = useState('cash');
+  const [payReceiptUri, setPayReceiptUri] = useState(null); // proof photo picked in the sheet
+  const [payingSave,    setPayingSave]    = useState(false);
 
   // Receipt viewer state
   const [receiptModal,  setReceiptModal]  = useState(null); // order with receipt_url
@@ -217,28 +218,70 @@ export default function OrdersScreen() {
   const openPayModal = (order) => {
     setPayAmount(String(order.total_amount || ''));
     setPayMode('cash');
+    setPayReceiptUri(null);
     setPayModal({ order });
+  };
+
+  // Pick a receipt photo from inside the payment sheet (proof of payment).
+  const pickPaymentReceipt = () => {
+    if (!cloudinaryConfigured()) {
+      Alert.alert(
+        'రసీదు సెటప్ కాలేదు · Receipt not set up',
+        'Cloudinary keys missing in .env. Add EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME and EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET, then restart the app.'
+      );
+      return;
+    }
+    Alert.alert(
+      '📄 రసీదు ఫోటో · Receipt photo',
+      'చెల్లింపు రుజువు · Proof of payment',
+      [
+        { text: '📷 ఫోటో తీయండి · Camera',    onPress: () => grabPaymentPhoto('camera') },
+        { text: '🖼️ గ్యాలరీ నుండి · Gallery', onPress: () => grabPaymentPhoto('gallery') },
+        { text: 'రద్దు · Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const grabPaymentPhoto = async (source) => {
+    const perm = source === 'camera'
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== 'granted') {
+      Alert.alert('అనుమతి అవసరం · Permission needed', 'Settings లో అనుమతి ఇవ్వండి.');
+      return;
+    }
+    const result = source === 'camera'
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+    setPayReceiptUri(result.assets[0].uri);
   };
 
   const handleMarkPaid = async () => {
     if (!payModal) return;
     setPayingSave(true);
-    const order  = payModal.order;
+    const order   = payModal.order;
     const orderId = order.id || order._localId;
     const amount  = parseFloat(payAmount) || order.total_amount || 0;
     const paidAt  = new Date().toISOString();
+    const receiptUri = payReceiptUri;
 
-    // Update UI immediately
+    // Update UI immediately — mark paid + show local receipt preview if attached
     setOrders((prev) => prev.map((o) => {
       const oId = o.id || o._localId;
       return oId === orderId
-        ? { ...o, payment_status: 'paid', payment_mode: payMode, paid_at: paidAt, amount_paid: amount }
+        ? {
+            ...o,
+            payment_status: 'paid', payment_mode: payMode, paid_at: paidAt, amount_paid: amount,
+            receipt_local_uri: receiptUri || o.receipt_local_uri,
+            receipt_uploading: !!receiptUri,
+          }
         : o;
     }));
     setPayModal(null);
     setPayingSave(false);
 
-    // Background sync
+    // Background sync — payment fields
     if (order.id && !order.id.startsWith('local_')) {
       updateDoc(doc(db, 'vendor_orders', order.id), {
         payment_status: 'paid',
@@ -253,6 +296,30 @@ export default function OrdersScreen() {
           data: { payment_status: 'paid', payment_mode: payMode, paid_at: paidAt, amount_paid: amount },
         });
       });
+    }
+
+    // Background — upload receipt proof to Cloudinary, then save its URL
+    if (receiptUri) {
+      try {
+        const url = await uploadReceipt(order.id || orderId, receiptUri);
+        setOrders((prev) => prev.map((o) => {
+          const oId = o.id || o._localId;
+          return oId === orderId ? { ...o, receipt_url: url, receipt_local_uri: null, receipt_uploading: false } : o;
+        }));
+        if (order.id && !order.id.startsWith('local_')) {
+          updateDoc(doc(db, 'vendor_orders', order.id), {
+            receipt_url:         url,
+            receipt_uploaded_at: serverTimestamp(),
+            updated_at:          serverTimestamp(),
+          }).catch(() => {});
+        }
+      } catch {
+        setOrders((prev) => prev.map((o) => {
+          const oId = o.id || o._localId;
+          return oId === orderId ? { ...o, receipt_uploading: false } : o;
+        }));
+        Alert.alert('Upload లోపం', 'రసీదు అప్‌లోడ్ విఫలమైంది. Paid order లో మళ్ళీ ప్రయత్నించండి.');
+      }
     }
   };
 
@@ -487,24 +554,41 @@ export default function OrdersScreen() {
         <View style={styles.payDivider} />
         <View style={styles.paySection}>
           {isPaid ? (
-            /* Paid state */
-            <View style={styles.payStatusRow}>
-              <View style={styles.paidBadge}>
-                <Text style={styles.paidBadgeText}>✓ చెల్లించాం · Paid</Text>
+            <>
+              {/* Paid state */}
+              <View style={styles.payStatusRow}>
+                <View style={styles.paidBadge}>
+                  <Text style={styles.paidBadgeText}>✓ చెల్లించాం · Paid</Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.paidMeta}>
+                    {PAY_MODES.find(m => m.key === order.payment_mode)?.emoji ?? '💵'}{' '}
+                    {PAY_MODES.find(m => m.key === order.payment_mode)?.label ?? order.payment_mode}
+                    {'  ·  '}₹{(order.amount_paid || order.total_amount || 0).toFixed(0)}
+                  </Text>
+                  {order.paid_at ? (
+                    <Text style={styles.paidDate}>చెల్లించిన తేదీ: {fmtPaidDate(order.paid_at)}</Text>
+                  ) : null}
+                </View>
               </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.paidMeta}>
-                  {PAY_MODES.find(m => m.key === order.payment_mode)?.emoji ?? '💵'}{' '}
-                  {PAY_MODES.find(m => m.key === order.payment_mode)?.label ?? order.payment_mode}
-                  {'  ·  '}₹{(order.amount_paid || order.total_amount || 0).toFixed(0)}
-                </Text>
-                {order.paid_at ? (
-                  <Text style={styles.paidDate}>చెల్లించిన తేదీ: {fmtPaidDate(order.paid_at)}</Text>
-                ) : null}
-              </View>
-            </View>
+
+              {/* Receipt = proof of payment (only on paid orders) */}
+              <TouchableOpacity
+                style={[styles.receiptBtn, receiptUri && styles.receiptBtnGreen]}
+                onPress={() => handleReceiptPress(order)}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <ActivityIndicator size="small" color="#2d6a4f" />
+                ) : receiptUri ? (
+                  <Text style={[styles.receiptBtnText, styles.receiptBtnTextGreen]}>📄 రసీదు చూడు · View proof</Text>
+                ) : (
+                  <Text style={styles.receiptBtnText}>📷 రసీదు చేర్చు · Add proof</Text>
+                )}
+              </TouchableOpacity>
+            </>
           ) : (
-            /* Pending state */
+            /* Pending state — receipt is captured together with payment */
             <View style={styles.payStatusRow}>
               <View style={styles.pendingBadge}>
                 <Text style={styles.pendingBadgeText}>🔴 చెల్లించలేదు · Unpaid</Text>
@@ -513,25 +597,10 @@ export default function OrdersScreen() {
                 style={styles.markPaidBtn}
                 onPress={() => openPayModal(order)}
               >
-                <Text style={styles.markPaidBtnText}>💰 చెల్లించాం</Text>
+                <Text style={styles.markPaidBtnText}>💰 చెల్లించాం · Pay</Text>
               </TouchableOpacity>
             </View>
           )}
-
-          {/* Receipt button */}
-          <TouchableOpacity
-            style={[styles.receiptBtn, receiptUri && styles.receiptBtnGreen]}
-            onPress={() => handleReceiptPress(order)}
-            disabled={isUploading}
-          >
-            {isUploading ? (
-              <ActivityIndicator size="small" color="#2d6a4f" />
-            ) : receiptUri ? (
-              <Text style={[styles.receiptBtnText, styles.receiptBtnTextGreen]}>📄 రసీదు చూడు · View</Text>
-            ) : (
-              <Text style={styles.receiptBtnText}>📄 రసీదు చేర్చు · Add</Text>
-            )}
-          </TouchableOpacity>
         </View>
       </View>
     );
@@ -785,6 +854,22 @@ export default function OrdersScreen() {
             ))}
           </View>
 
+          {/* Receipt photo = proof of this payment (optional) */}
+          <Text style={styles.sheetLabel}>రసీదు ఫోటో · Receipt (proof) — ఐచ్ఛికం</Text>
+          {payReceiptUri ? (
+            <View style={styles.receiptPreviewRow}>
+              <Image source={{ uri: payReceiptUri }} style={styles.receiptThumb} />
+              <Text style={styles.receiptAttachedText}>✓ ఫోటో జతచేయబడింది · Attached</Text>
+              <TouchableOpacity onPress={() => setPayReceiptUri(null)} style={styles.receiptRemoveBtn}>
+                <Text style={styles.receiptRemoveText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.attachReceiptBtn} onPress={pickPaymentReceipt}>
+              <Text style={styles.attachReceiptText}>📷 రసీదు ఫోటో చేర్చు · Add receipt photo</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={[styles.confirmPayBtn, payingSave && { backgroundColor: '#74c69d' }]}
             onPress={handleMarkPaid}
@@ -937,12 +1022,22 @@ const styles = StyleSheet.create({
   amtRow:        { flexDirection: 'row', alignItems: 'center', borderWidth: 2, borderColor: '#2d6a4f', borderRadius: 12, paddingHorizontal: 14, height: 56, marginBottom: 20 },
   amtRupee:      { fontSize: 24, color: '#2d6a4f', fontWeight: '700', marginRight: 6 },
   amtInput:      { flex: 1, fontSize: 28, fontWeight: '700', color: '#1a472a' },
-  modeRow:       { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  modeRow:       { flexDirection: 'row', gap: 12, marginBottom: 18 },
   modeBtn:       { flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#ddd', backgroundColor: '#fafafa' },
   modeBtnActive: { borderColor: '#2d6a4f', backgroundColor: '#e8f5ec' },
   modeEmoji:     { fontSize: 24, marginBottom: 4 },
   modeLabel:     { fontSize: 12, fontWeight: '600', color: '#666' },
   modeLabelActive: { color: '#2d6a4f' },
+
+  // Receipt attach (inside payment sheet)
+  attachReceiptBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#2d6a4f', borderStyle: 'dashed', borderRadius: 12, paddingVertical: 14, marginBottom: 24 },
+  attachReceiptText: { fontSize: 14, fontWeight: '700', color: '#2d6a4f' },
+  receiptPreviewRow:  { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#e8f5ec', borderRadius: 12, padding: 10, marginBottom: 24 },
+  receiptThumb:       { width: 48, height: 48, borderRadius: 8, backgroundColor: '#ccc' },
+  receiptAttachedText: { flex: 1, fontSize: 13, fontWeight: '700', color: '#2d6a4f' },
+  receiptRemoveBtn:   { width: 30, height: 30, borderRadius: 15, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  receiptRemoveText:  { fontSize: 14, fontWeight: '700', color: '#e74c3c' },
+
   confirmPayBtn:     { backgroundColor: '#2d6a4f', borderRadius: 14, paddingVertical: 18, alignItems: 'center' },
   confirmPayBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 

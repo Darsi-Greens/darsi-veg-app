@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { SyncQueue } from '../services/SyncQueue';
 
+// Clean, subtle sync status chip shown in every screen header.
+//   • all synced  → small soft-green dot, no text
+//   • pending     → amber dot + count, tap to retry
+//   • syncing     → spinner
 export default function SyncIndicator() {
-  const [pending, setPending]   = useState(0);
-  const [syncing, setSyncing]   = useState(false);
+  const [pending, setPending] = useState(0);
+  const [syncing, setSyncing] = useState(false);
 
   const refresh = async () => {
     const count = await SyncQueue.getPendingCount();
@@ -18,29 +22,57 @@ export default function SyncIndicator() {
   }, []);
 
   const handlePress = async () => {
-    if (syncing) return;
+    if (syncing || pending === 0) return;
     setSyncing(true);
     await SyncQueue.process();
     await refresh();
     setSyncing(false);
   };
 
-  const dot   = syncing ? '🟡' : pending > 0 ? '🔴' : '🟢';
-  const label = pending > 0 ? `${pending} ⏳` : '';
+  const hasPending = pending > 0;
+  const dotColor = hasPending ? '#ffd166' : '#7BE0A4';
 
   return (
-    <TouchableOpacity onPress={handlePress} style={styles.wrap} activeOpacity={0.7}>
-      <Text style={styles.text}>{dot}{label ? ` ${label}` : ''}</Text>
+    <TouchableOpacity
+      onPress={handlePress}
+      style={[styles.wrap, hasPending && styles.wrapPending]}
+      activeOpacity={hasPending ? 0.7 : 1}
+    >
+      {syncing ? (
+        <ActivityIndicator size="small" color="#fff" />
+      ) : (
+        <>
+          <View style={[styles.dot, { backgroundColor: dotColor }]} />
+          {hasPending && <Text style={styles.text}>{pending}</Text>}
+        </>
+      )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minWidth: 30,
+    height: 30,
+    borderRadius: 15,
+    paddingHorizontal: 8,
+  },
+  wrapPending: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 11,
+  },
+  dot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
   },
   text: {
-    fontSize: 16,
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
