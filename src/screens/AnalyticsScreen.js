@@ -13,6 +13,7 @@ import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import { newId } from '../services/ids';
+import { inr } from '../utils/money';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 
@@ -409,7 +410,7 @@ export default function AnalyticsScreen() {
             <View style={[s.card, { backgroundColor: (td?.netProfit ?? 0) >= 0 ? '#f0fff4' : '#fff5f5' }]}>
               <Text style={s.cardLabel}>లాభం / Net Profit</Text>
               <Text style={[s.bigNum, { color: (td?.netProfit ?? 0) >= 0 ? '#1a472a' : '#e74c3c' }]}>
-                ₹{(td?.netProfit ?? 0).toFixed(2)}
+                {inr(td?.netProfit ?? 0)}
               </Text>
               <View style={s.profitBreak}>
                 <ProfitRow label="అమ్మకాలు"  val={td?.totalSales}    color="#2d6a4f" plus />
@@ -445,12 +446,12 @@ export default function AnalyticsScreen() {
                   <View key={e.id} style={s.expRow}>
                     <Text style={s.expType}>{e.type}</Text>
                     <Text style={s.expNote}>{e.note}</Text>
-                    <Text style={s.expAmt}>₹{(e.amount || 0).toFixed(0)}</Text>
+                    <Text style={s.expAmt}>{inr(e.amount || 0)}</Text>
                   </View>
                 ))
               )}
               {expenses.length > 0 && (
-                <Text style={s.expTotal}>మొత్తం: ₹{(td?.totalExpenses ?? 0).toFixed(2)}</Text>
+                <Text style={s.expTotal}>మొత్తం: {inr(td?.totalExpenses ?? 0)}</Text>
               )}
             </View>
 
@@ -463,7 +464,7 @@ export default function AnalyticsScreen() {
                     <Text style={s.vegEmoji}>{v.emoji}</Text>
                     <Text style={s.vegName}>{v.name_te}</Text>
                     <Text style={s.vegQty}>{v.qty.toFixed(1)} {v.unit ?? 'kg'}</Text>
-                    <Text style={s.vegRev}>₹{v.revenue.toFixed(0)}</Text>
+                    <Text style={s.vegRev}>{inr(v.revenue)}</Text>
                   </View>
                 ))}
               </View>
@@ -491,9 +492,9 @@ export default function AnalyticsScreen() {
               {monthData.days.map((d) => (
                 <View key={d.date} style={s.dayRow}>
                   <Text style={s.dayDate}>{fmtDate(d.date)}</Text>
-                  <Text style={s.daySales}>₹{d.sales.toFixed(0)}</Text>
+                  <Text style={s.daySales}>{inr(d.sales)}</Text>
                   <Text style={[s.dayProfit, { color: d.profit >= 0 ? '#2d6a4f' : '#e74c3c' }]}>
-                    {d.profit >= 0 ? '+' : ''}₹{d.profit.toFixed(0)}
+                    {d.profit >= 0 ? '+' : ''}{inr(d.profit)}
                   </Text>
                 </View>
               ))}
@@ -524,8 +525,8 @@ export default function AnalyticsScreen() {
                       <Text style={s.vendorDetail}>{v.totalOrders} orders · {v.totalQty.toFixed(0)} kg total</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={s.vendorAvg}>₹{v.avgPerKg.toFixed(1)}/kg</Text>
-                      <Text style={s.vendorTotal}>₹{v.totalSpend.toFixed(0)} total</Text>
+                      <Text style={s.vendorAvg}>{inr(v.avgPerKg, 1)}/kg</Text>
+                      <Text style={s.vendorTotal}>{inr(v.totalSpend)} total</Text>
                     </View>
                   </View>
                 ))}
@@ -541,7 +542,7 @@ export default function AnalyticsScreen() {
             <View style={[s.card, { backgroundColor: creditTotal > 0 ? '#fff5f5' : '#f0fff4' }]}>
               <Text style={s.cardLabel}>మొత్తం బాకీ / Total Udhari</Text>
               <Text style={[s.bigNum, { color: creditTotal > 0 ? '#e74c3c' : '#2d6a4f' }]}>
-                ₹{creditTotal.toFixed(2)}
+                {inr(creditTotal)}
               </Text>
               <Text style={{ fontSize: 13, color: '#888', marginTop: 4 }}>{creditSales.length} అవుట్‌స్టాండింగ్ సేల్స్</Text>
             </View>
@@ -558,12 +559,12 @@ export default function AnalyticsScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={s.creditVeg}>{sale.veg_emoji ?? '🥬'} {sale.veg_name_te}</Text>
                     <Text style={s.creditMeta}>
-                      {sale.sale_date}  ·  {sale.quantity} {sale.unit}  ·  ₹{sale.sell_price}/unit
+                      {sale.sale_date}  ·  {sale.quantity} {sale.unit}  ·  {inr(sale.sell_price)}/unit
                     </Text>
                     {sale.created_at ? <Text style={s.creditTime}>{fmtTime(sale.created_at)}</Text> : null}
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                    <Text style={s.creditAmt}>₹{(sale.total_amount || 0).toFixed(0)}</Text>
+                    <Text style={s.creditAmt}>{inr(sale.total_amount || 0)}</Text>
                     <TouchableOpacity
                       style={[s.paidBtn, markingPaid === sale.id && { backgroundColor: '#74c69d' }]}
                       onPress={() => markPaid(sale)}
@@ -586,7 +587,7 @@ export default function AnalyticsScreen() {
             <View style={[s.card, { backgroundColor: totalDues > 0 ? '#fff5f5' : '#f0fff4' }]}>
               <Text style={s.cardLabel}>చెల్లించాల్సిన మొత్తం · Total Outstanding</Text>
               <Text style={[s.bigNum, { color: totalDues > 0 ? '#e74c3c' : '#2d6a4f' }]}>
-                ₹{totalDues.toFixed(2)}
+                {inr(totalDues)}
               </Text>
               <Text style={{ fontSize: 13, color: '#888', marginTop: 4 }}>
                 {vendorDues.length} వెండర్లు · vendors with pending dues
@@ -608,11 +609,11 @@ export default function AnalyticsScreen() {
                       <Text style={s.dueVendorNameTe}>{v.name}</Text>
                     ) : null}
                     <Text style={s.dueMeta}>
-                      {v.orderCount} orders · ₹{v.totalPending.toFixed(0)} pending
+                      {v.orderCount} orders · {inr(v.totalPending)} pending
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                    <Text style={s.dueAmt}>₹{v.totalPending.toFixed(0)}</Text>
+                    <Text style={s.dueAmt}>{inr(v.totalPending)}</Text>
                     <View style={s.duePendingBadge}>
                       <Text style={s.duePendingText}>🔴 బాకీ</Text>
                     </View>
@@ -678,21 +679,21 @@ const ProfitRow = ({ label, val, color, plus }) => (
   <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
     <Text style={{ fontSize: 13, color: '#666' }}>{label}</Text>
     <Text style={{ fontSize: 13, fontWeight: '600', color }}>
-      {plus ? '+' : '−'} ₹{(val ?? 0).toFixed(2)}
+      {plus ? '+' : '−'} {inr(val ?? 0, 2)}
     </Text>
   </View>
 );
 
 const PayCell = ({ label, val, color }) => (
   <View style={{ flex: 1, alignItems: 'center' }}>
-    <Text style={{ fontSize: 16, fontWeight: '700', color }}>₹{(val ?? 0).toFixed(0)}</Text>
+    <Text style={{ fontSize: 16, fontWeight: '700', color }}>{inr(val ?? 0)}</Text>
     <Text style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{label}</Text>
   </View>
 );
 
 const MonthCell = ({ label, val, color, bold }) => (
   <View style={{ flex: 1, alignItems: 'center' }}>
-    <Text style={{ fontSize: bold ? 18 : 15, fontWeight: bold ? 'bold' : '600', color }}>₹{(val ?? 0).toFixed(0)}</Text>
+    <Text style={{ fontSize: bold ? 18 : 15, fontWeight: bold ? 'bold' : '600', color }}>{inr(val ?? 0)}</Text>
     <Text style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{label}</Text>
   </View>
 );

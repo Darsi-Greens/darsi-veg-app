@@ -14,6 +14,7 @@ import {
   Dimensions,
   ScrollView,
   Platform,
+  Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -24,6 +25,7 @@ import { SyncQueue } from '../services/SyncQueue';
 import { newId } from '../services/ids';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
+import { inr } from '../utils/money';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_SIZE = (SCREEN_WIDTH - 48) / 2;
@@ -103,7 +105,32 @@ export default function Sales() {
   const [payMode,    setPayMode]   = useState('cash');
   const [saving,     setSaving]    = useState(false);
 
+  // Running "today's sales" tally shown in the header (C1)
+  const [todayTotal, setTodayTotal] = useState(0);
+  const [todayCount, setTodayCount] = useState(0);
+
+  // Lightweight non-blocking toast (C1) — replaces the blocking success Alert
+  const [toast, setToast] = useState('');
+  const toastAnim = useRef(new Animated.Value(0)).current;
+
   const firstLoad = useRef(true);
+
+  const showToast = (text) => {
+    setToast(text);
+    Animated.sequence([
+      Animated.timing(toastAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.delay(1400),
+      Animated.timing(toastAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]).start(() => setToast(''));
+  };
+
+  // Sum today's sales from LocalDB (today_sales) for the header chip.
+  const loadTodayTally = async (date) => {
+    const all = (await LocalDB.get('today_sales')) || [];
+    const todays = all.filter((s) => s.sale_date === date);
+    setTodayTotal(todays.reduce((sum, s) => sum + (s.total_amount || 0), 0));
+    setTodayCount(todays.length);
+  };
 
   // Reload every time the tab gains focus so price changes made on the ధరలు
   // screen are reflected here immediately (tab screens stay mounted, so a
@@ -115,6 +142,7 @@ export default function Sales() {
         loadVegetables(),
         loadPrices(date),
         flushOfflineQueue(),
+        loadTodayTally(date),
       ]).finally(() => {
         if (firstLoad.current) {
           setLoading(false);
@@ -301,12 +329,13 @@ export default function Sales() {
     // 1. Save to LocalDB immediately
     await LocalDB.append('today_sales', { ...saleDoc, id: saleId, saved_at: new Date().toISOString() });
 
-    // 2. Update UI immediately
+    // 2. Update UI immediately — non-blocking toast + bump the running tally
+    //    so the parent can keep selling without dismissing a dialog (C1).
+    const vegName = selected.name_te;
     closeModal();
-    Alert.alert(
-      '✓ అమ్మకం నమోదు · Record Sale',
-      `${selected.name_te} — ${quantity} ${UNIT_TE[activeUnit]}\nమొత్తం · Total amount: ₹${totalAmount}`
-    );
+    setTodayTotal((t) => t + totalAmount);
+    setTodayCount((c) => c + 1);
+    showToast(`✓ ${vegName} — ${inr(totalAmount)}`);
     setSaving(false);
 
     // 3. Sync to Firestore in background (idempotent setDoc with our ID)
@@ -349,7 +378,7 @@ export default function Sales() {
           <Text style={styles.cardNameTe} numberOfLines={1}>{item.name_te}</Text>
           <Text style={styles.cardNameEn} numberOfLines={1}>{item.name_en}</Text>
           <Text style={[styles.cardPrice, !sellPrice && styles.cardNoPrice]}>
-            {sellPrice ? `₹${sellPrice}/${unitLabel}` : 'ధర సెట్ చేయండి ⚠️'}
+            {sellPrice ? `${inr(sellPrice)}/${unitLabel}` : 'ధర సెట్ చేయండి ⚠️'}
           </Text>
         </View>
       </TouchableOpacity>
@@ -392,7 +421,7 @@ export default function Sales() {
               {/* Today's price */}
               <Text style={sellPrice ? styles.sheetPrice : styles.sheetNoPrice}>
                 {sellPrice
-                  ? `₹${sellPrice} / ${UNIT_TE[UNIT_TABS[selected.unit]?.[0] ?? 'pcs']}`
+                  ? `${inr(sellPrice)} / ${UNIT_TE[UNIT_TABS[selected.unit]?.[0] ?? 'pcs']}`
                   : 'ఈ రోజు ధర లేదు / No price set today'}
               </Text>
 
@@ -441,7 +470,7 @@ export default function Sales() {
               {/* Total */}
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>మొత్తం · Total amount</Text>
-                <Text style={styles.totalValue}>₹{total}</Text>
+                <Text style={styles.totalValue}>{inr(total, 2)}</Text>
               </View>
 
               {/* Payment mode */}
@@ -489,7 +518,19 @@ export default function Sales() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AppHeader title="అమ్మకాలు" subtitle="Today's Sales" showDate />
+      <AppHeader
+        title="అమ్మకాలు"
+        subtitle="Today's Sales"
+        showDate
+        right={
+          todayCount > 0 ? (
+            <View style={styles.tallyChip}>
+              <Text style={styles.tallyAmt}>{inr(todayTotal)}</Text>
+              <Text style={styles.tallyCount}>{todayCount} అమ్మకాలు</Text>
+            </View>
+          ) : null
+        }
+      />
 
       {/* Search bar */}
       <View style={styles.searchWrap}>
@@ -527,6 +568,19 @@ export default function Sales() {
       )}
 
       {renderModal()}
+
+      {/* Non-blocking success toast (C1) */}
+      {toast ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.toast,
+            { opacity: toastAnim, transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] },
+          ]}
+        >
+          <Text style={styles.toastText}>{toast}</Text>
+        </Animated.View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -593,6 +647,35 @@ const styles = StyleSheet.create({
   loader: {
     marginTop: 48,
   },
+
+  // Header running-total chip (C1)
+  tallyChip: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    alignItems: 'flex-end',
+  },
+  tallyAmt:   { color: '#fff', fontSize: 16, fontWeight: '800' },
+  tallyCount: { color: '#cdeedd', fontSize: 10, fontWeight: '600', marginTop: 1 },
+
+  // Toast (C1)
+  toast: {
+    position: 'absolute',
+    bottom: 28,
+    alignSelf: 'center',
+    backgroundColor: '#1a472a',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    maxWidth: '90%',
+  },
+  toastText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   // Grid
   grid: {

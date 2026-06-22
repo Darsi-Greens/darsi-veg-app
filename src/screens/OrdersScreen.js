@@ -14,6 +14,7 @@ import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import { newId } from '../services/ids';
+import { inr } from '../utils/money';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 import SelectionSheet from '../components/SelectionSheet';
@@ -555,14 +556,14 @@ export default function OrdersScreen() {
           <View key={i} style={styles.itemRow}>
             <Text style={styles.itemName}>{item.veg_name_te}</Text>
             <Text style={styles.itemQty}>{item.quantity} {UNIT_TE[item.unit] ?? item.unit}</Text>
-            <Text style={styles.itemPrice}>₹{item.buy_price}</Text>
-            <Text style={styles.itemTotal}>₹{((item.quantity || 0) * (item.buy_price || 0)).toFixed(0)}</Text>
+            <Text style={styles.itemPrice}>{inr(item.buy_price)}</Text>
+            <Text style={styles.itemTotal}>{inr((item.quantity || 0) * (item.buy_price || 0))}</Text>
           </View>
         ))}
 
         {/* Total */}
         <View style={styles.orderFooter}>
-          <Text style={styles.orderTotal}>మొత్తం: ₹{(order.total_amount || 0).toFixed(2)}</Text>
+          <Text style={styles.orderTotal}>మొత్తం: {inr(order.total_amount || 0)}</Text>
         </View>
 
         {/* ── Payment section ── */}
@@ -579,7 +580,7 @@ export default function OrdersScreen() {
                   <Text style={styles.paidMeta}>
                     {PAY_MODES.find(m => m.key === order.payment_mode)?.emoji ?? '💵'}{' '}
                     {PAY_MODES.find(m => m.key === order.payment_mode)?.label ?? order.payment_mode}
-                    {'  ·  '}₹{(order.amount_paid || order.total_amount || 0).toFixed(0)}
+                    {'  ·  '}{inr(order.amount_paid || order.total_amount || 0)}
                   </Text>
                   {order.paid_at ? (
                     <Text style={styles.paidDate}>చెల్లించిన తేదీ: {fmtPaidDate(order.paid_at)}</Text>
@@ -754,7 +755,7 @@ export default function OrdersScreen() {
                       </View>
                       <View style={{ alignItems: 'flex-end', justifyContent: 'flex-end' }}>
                         <Text style={styles.inputLabel}>మొత్తం</Text>
-                        <Text style={styles.lineTotal}>₹{item.lineTotal.toFixed(0)}</Text>
+                        <Text style={styles.lineTotal}>{inr(item.lineTotal)}</Text>
                       </View>
                     </View>
 
@@ -773,7 +774,7 @@ export default function OrdersScreen() {
 
                 <View style={styles.grandTotalRow}>
                   <Text style={styles.grandTotalLabel}>మొత్తం బిల్లు</Text>
-                  <Text style={styles.grandTotalValue}>₹{grandTotal.toFixed(2)}</Text>
+                  <Text style={styles.grandTotalValue}>{inr(grandTotal)}</Text>
                 </View>
 
                 <TouchableOpacity
@@ -784,7 +785,7 @@ export default function OrdersScreen() {
                   <Text style={styles.saveBtnText}>
                     {saving
                       ? 'సేవ్ అవుతోంది...'
-                      : `✓ ఆర్డర్ సేవ్ చేయండి · Save Order  ₹${grandTotal.toFixed(0)}`}
+                      : `✓ ఆర్డర్ సేవ్ చేయండి · Save Order  ${inr(grandTotal)}`}
                   </Text>
                 </TouchableOpacity>
               </>
@@ -916,7 +917,7 @@ export default function OrdersScreen() {
             {'  ·  '}
             {fmtDate(receiptModal?.order_date)}
             {'  ·  '}
-            ₹{(receiptModal?.total_amount || 0).toFixed(0)}
+            {inr(receiptModal?.total_amount || 0)}
           </Text>
         </SafeAreaView>
       </Modal>

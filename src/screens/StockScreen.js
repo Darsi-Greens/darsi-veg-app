@@ -166,24 +166,41 @@ export default function StockScreen() {
   // ── Save carry-over ──────────────────────────────────────────────────────────
 
   const saveCarry = async () => {
-    const qty = parseFloat(carryQty);
-    if (!qty || qty <= 0) { Alert.alert('పరిమాణం చేర్చండి', 'నిన్నటి స్టాక్ పరిమాణం నమోదు చేయండి.'); return; }
+    const target = parseFloat(carryQty);
+    if (isNaN(target) || target < 0) { Alert.alert('పరిమాణం చేర్చండి', 'నిన్నటి స్టాక్ పరిమాణం నమోదు చేయండి.'); return; }
+
+    // SET semantics: the entered value is the TOTAL carry-over for today, not an
+    // addition. We write only the delta so tapping again with the same number is
+    // a no-op (fixes the old "tap twice = double" bug). carry_over logs must be
+    // positive (rules), so a decrease can't be expressed as a log entry.
+    const current = carryModal.current || 0;
+    const delta = parseFloat((target - current).toFixed(3));
+
+    if (delta === 0) { setCarryModal(null); setCarryQty(''); return; }
+    if (delta < 0) {
+      Alert.alert(
+        'తగ్గించలేరు · Cannot reduce',
+        `నిన్నటి స్టాక్ ఇప్పటికే ${current} నమోదైంది. దాన్ని తగ్గించలేరు.\nCarry-over is already ${current}; it can only be increased.`
+      );
+      return;
+    }
+
     setSavingCarry(true);
     const logId = newId();
     const carryData = {
       veg_id:      carryModal.veg_id,
       veg_name_te: carryModal.veg_name_te,
       type:        'carry_over',
-      quantity:    qty,
+      quantity:    delta,
       unit:        carryModal.unit,
       log_date:    todayStr(),
     };
 
-    // 1. Save locally + update UI immediately
+    // 1. Save locally + update UI immediately (set carryQty to target)
     await LocalDB.append('today_stock_log', { ...carryData, id: logId, saved_at: new Date().toISOString() });
     setRows((prev) => prev.map((r) =>
       r.id === carryModal.veg_id
-        ? { ...r, carryQty: r.carryQty + qty, remaining: parseFloat((r.remaining + qty).toFixed(3)) }
+        ? { ...r, carryQty: target, remaining: parseFloat((r.remaining + delta).toFixed(3)) }
         : r
     ));
     setCarryModal(null);
@@ -249,7 +266,7 @@ export default function StockScreen() {
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={styles.carryBtn}
-            onPress={() => { setCarryModal({ veg_id: item.id, veg_name_te: item.name_te, unit: item.unit }); setCarryQty(''); }}
+            onPress={() => { setCarryModal({ veg_id: item.id, veg_name_te: item.name_te, unit: item.unit, current: item.carryQty }); setCarryQty(item.carryQty ? String(item.carryQty) : ''); }}
           >
             <Text style={styles.carryBtnText}>+ నిన్నటి స్టాక్</Text>
           </TouchableOpacity>
@@ -337,6 +354,11 @@ export default function StockScreen() {
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>📦 నిన్నటి స్టాక్</Text>
             <Text style={styles.modalSub}>{carryModal?.veg_name_te} — నిన్న ఎంత మిగిలింది?</Text>
+            {carryModal?.current > 0 ? (
+              <Text style={styles.modalNote}>
+                ప్రస్తుతం నమోదైంది · Already set: {carryModal.current} {UNIT_TE[carryModal?.unit] ?? 'కేజీ'}
+              </Text>
+            ) : null}
             <TextInput
               style={styles.modalInput}
               keyboardType="decimal-pad"
@@ -410,6 +432,7 @@ const styles = StyleSheet.create({
   modalBox:     { backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '80%', gap: 12 },
   modalTitle:   { fontSize: 18, fontWeight: '700', color: '#1a472a' },
   modalSub:     { fontSize: 14, color: '#555' },
+  modalNote:    { fontSize: 12, color: '#2d6a4f', fontWeight: '600', backgroundColor: '#e8f5ec', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   modalInput:   {
     borderWidth: 1.5, borderColor: '#b7e4c7', borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 12 : 8,
