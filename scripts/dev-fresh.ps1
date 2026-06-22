@@ -42,7 +42,17 @@ if ($adb -and (& $adb devices | Select-String 'device$')) {
   Write-Host "    (no adb / no device - skipping standalone cleanup)" -ForegroundColor DarkGray
 }
 
-# 2. Start Metro fresh (cleared cache) for the chosen env.
+# 2. Free port 8081 so a stale Metro can't cause a port-conflict prompt.
+try {
+  $pids = Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue |
+          Select-Object -ExpandProperty OwningProcess -Unique
+  foreach ($procId in $pids) {
+    Write-Host "    stopping stale Metro on :8081 (pid $procId)" -ForegroundColor Yellow
+    Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+  }
+} catch { }
+
+# 3. Start Metro fresh (cleared cache) for the chosen env.
 #    --clear guarantees no stale bundle. It auto-opens on a connected device.
 Write-Host "==> starting Metro with cleared cache (APP_ENV=$AppEnv)" -ForegroundColor Cyan
 $env:APP_ENV = $AppEnv
