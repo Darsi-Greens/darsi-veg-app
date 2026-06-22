@@ -4,6 +4,7 @@ import {
   StyleSheet, SafeAreaView, Alert, Switch, ScrollView, ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import {
   collection, getDocs, addDoc, doc, updateDoc, serverTimestamp,
 } from 'firebase/firestore';
@@ -609,10 +610,21 @@ function SettingsTab({ navigation }) {
     Alert.alert('సేవ్ అయింది ✓', 'Settings saved successfully.');
   };
 
-  const handleExit = () => {
-    Alert.alert('Admin Panel నుండి బయటకు', 'PIN Login కి వెళ్ళాలా?', [
-      { text: 'రద్దు', style: 'cancel' },
-      { text: 'బయటకు · Exit', onPress: () => navigation.replace('Login') },
+  const backToApp = () => {
+    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+  };
+
+  const handleLogout = () => {
+    Alert.alert('లాగౌట్ · Logout', 'PIN స్క్రీన్‌కి వెళ్ళాలా? · Go to PIN screen?', [
+      { text: 'రద్దు · Cancel', style: 'cancel' },
+      {
+        text: 'లాగౌట్ · Logout',
+        style: 'destructive',
+        onPress: async () => {
+          await SecureStore.setItemAsync('authenticated', 'false');
+          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        },
+      },
     ]);
   };
 
@@ -666,8 +678,12 @@ function SettingsTab({ navigation }) {
         <Text style={styles.envLabel}>Environment: {envLabels[APP_ENV] ?? APP_ENV}</Text>
       </View>
 
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleExit}>
-        <Text style={styles.logoutText}>🚪 Admin Panel నుండి బయటకు · Exit Admin</Text>
+      <TouchableOpacity style={styles.backAppBtn} onPress={backToApp}>
+        <Text style={styles.backAppText}>← యాప్‌కి తిరిగి · Back to App</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <Text style={styles.logoutText}>🚪 లాగౌట్ · Logout (PIN screen)</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -686,13 +702,13 @@ export default function AdminPanel({ navigation }) {
 
   return (
     <SafeAreaView style={styles.root}>
-      {/* Header with close button */}
+      {/* Header — close returns to the app (Home tabs), NOT the login screen */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.exitBtn}
-          onPress={() => navigation.replace('Login')}
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Home' }] })}
         >
-          <Text style={styles.exitBtnText}>✕ బయటకు</Text>
+          <Text style={styles.exitBtnText}>← యాప్‌కి · App</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>⚙️ Admin Panel</Text>
         <View style={{ width: 80 }} />
@@ -795,7 +811,9 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1a472a', marginTop: 20, marginBottom: 10 },
   envBox:       { marginTop: 28, padding: 14, backgroundColor: '#e8f5e9', borderRadius: 10, alignItems: 'center' },
   envLabel:     { fontSize: 14, color: '#2e7d32', fontWeight: '600' },
-  logoutBtn:    { marginTop: 20, padding: 14, backgroundColor: '#fff3e0', borderRadius: 10, alignItems: 'center' },
+  backAppBtn:   { marginTop: 20, padding: 14, backgroundColor: '#e8f5ec', borderRadius: 10, alignItems: 'center' },
+  backAppText:  { fontSize: 15, color: '#2e7d32', fontWeight: '700' },
+  logoutBtn:    { marginTop: 12, padding: 14, backgroundColor: '#fff3e0', borderRadius: 10, alignItems: 'center' },
   logoutText:   { fontSize: 14, color: '#e65100', fontWeight: '600' },
 
   empty: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 15 },

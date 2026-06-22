@@ -65,6 +65,7 @@ export default function PinLogin({ navigation }) {
       if (next === adminPin) {
         setPin('');
         setError('');
+        SecureStore.setItemAsync('authenticated', 'true');
         navigation.replace('AdminPanel');
       } else if (next === regPin) {
         setPin('');
