@@ -1,16 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
   SafeAreaView, Alert, Modal, TextInput, ActivityIndicator,
   Platform, RefreshControl, FlatList,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import {
-  collection, addDoc, updateDoc, setDoc, getDocs, doc,
+  collection, updateDoc, setDoc, getDocs, getDoc, doc,
   serverTimestamp, query, where,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
+import { newId } from '../services/ids';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 
@@ -62,6 +64,22 @@ export default function AnalyticsScreen() {
 
   // Vendor dues state
   const [vendorDues,  setVendorDues]  = useState([]);
+
+  // Load today's customer count so adjustCount edits the real running total
+  // instead of resetting it to 0 (which would clobber the day's count). Only
+  // called on first load — focus reloads must not overwrite optimistic taps.
+  const loadCustomerCount = useCallback(async () => {
+    const today = todayStr();
+    try {
+      const sumSnap = await getDoc(doc(db, 'daily_summary', today));
+      const count = sumSnap.exists() ? (sumSnap.data().customer_count || 0) : 0;
+      setCustomerCount(count);
+      await LocalDB.set(`customer_count_${today}`, count);
+    } catch {
+      const cached = await LocalDB.get(`customer_count_${today}`);
+      if (cached != null) setCustomerCount(cached);
+    }
+  }, []);
 
   const loadToday = useCallback(async () => {
     const today = todayStr();
@@ -240,29 +258,49 @@ export default function AnalyticsScreen() {
     }
   }, []);
 
+  const firstLoad = useRef(true);
+
   const loadAll = useCallback(async () => {
-    await Promise.all([loadToday(), loadMonth(), loadCredit(), loadVendorDues()]);
+    const tasks = [loadToday(), loadMonth(), loadCredit(), loadVendorDues()];
+    // Counter is user-driven/optimistic — only sync it from the server on the
+    // very first load, never on focus reloads (would clobber pending taps).
+    if (firstLoad.current) tasks.push(loadCustomerCount());
+    await Promise.all(tasks);
+    firstLoad.current = false;
     setLoading(false);
     setRefreshing(false);
-  }, [loadToday, loadMonth, loadCredit, loadVendorDues]);
+  }, [loadToday, loadMonth, loadCredit, loadVendorDues, loadCustomerCount]);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  // Reload whenever the tab regains focus so figures stay fresh across tabs.
+  useFocusEffect(useCallback(() => { loadAll(); }, [loadAll]));
 
   const onRefresh = () => { setRefreshing(true); loadAll(); };
 
   // ── Customer count ───────────────────────────────────────────────────────────
 
   const adjustCount = async (delta) => {
+    const today = todayStr();
     const newCount = Math.max(0, customerCount + delta);
     setCustomerCount(newCount);
+    // Persist locally first so the count survives an app restart while offline.
+    await LocalDB.set(`customer_count_${today}`, newCount);
+
+    const payload = { summary_date: today, customer_count: newCount };
     try {
-      // Use setDoc with today's date as ID so we update (not append) the summary
-      await setDoc(doc(db, 'daily_summary', todayStr()), {
-        summary_date:   todayStr(),
-        customer_count: newCount,
-        updated_at:     serverTimestamp(),
+      // setDoc with the date as ID updates (not appends) the day's summary.
+      await setDoc(doc(db, 'daily_summary', today), {
+        ...payload,
+        updated_at: serverTimestamp(),
       }, { merge: true });
-    } catch { /* offline ok */ }
+    } catch {
+      // Offline — queue so the count isn't lost (was silently dropped before).
+      await SyncQueue.add({
+        type: 'setDoc',
+        path: ['daily_summary', today],
+        data: payload,
+        merge: true,
+      });
+    }
   };
 
   // ── Save expense ─────────────────────────────────────────────────────────────
@@ -279,10 +317,10 @@ export default function AnalyticsScreen() {
       note:         expNote,
     };
 
-    // 1. Save locally + update UI immediately
-    const localId = `local_exp_${Date.now()}`;
-    await LocalDB.append('today_expenses', { ...expData, localId, saved_at: new Date().toISOString() });
-    const newExp = { id: localId, ...expData };
+    // 1. Save locally + update UI immediately (client ID = idempotent write)
+    const expId = newId();
+    await LocalDB.append('today_expenses', { ...expData, id: expId, saved_at: new Date().toISOString() });
+    const newExp = { id: expId, ...expData };
     setExpenses((p) => [...p, newExp]);
     setTodayData((p) => p ? { ...p, totalExpenses: p.totalExpenses + amt, netProfit: p.netProfit - amt } : p);
     setExpenseModal(false);
@@ -290,11 +328,11 @@ export default function AnalyticsScreen() {
     setExpNote('');
     setSavingExp(false);
 
-    // 2. Sync to Firestore in background
+    // 2. Sync to Firestore in background (idempotent — no duplicate on retry)
     try {
-      await addDoc(collection(db, 'daily_expenses'), { ...expData, created_at: serverTimestamp() });
+      await setDoc(doc(db, 'daily_expenses', expId), { ...expData, created_at: serverTimestamp() });
     } catch {
-      await SyncQueue.add({ collectionName: 'daily_expenses', data: expData });
+      await SyncQueue.add({ type: 'createWithId', collectionName: 'daily_expenses', docId: expId, data: expData });
     }
   };
 

@@ -96,15 +96,20 @@ export default function AppNavigator({ navigation }) {
         ))}
       </Tab.Navigator>
 
-      {APP_ENV !== 'production' && (
-        <TouchableOpacity
-          style={styles.adminFab}
-          onPress={openGate}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.adminFabText}>⚙️ Admin</Text>
-        </TouchableOpacity>
-      )}
+      {/* Admin entry is always available (it is PIN-gated below). In production
+          it is rendered as a small, discreet gear so parents aren't tempted to
+          tap it, but the owner can still reach Admin — otherwise, once a parent
+          logs in, the panel would be permanently unreachable in PROD. */}
+      <TouchableOpacity
+        style={[styles.adminFab, APP_ENV === 'production' && styles.adminFabProd]}
+        onPress={openGate}
+        activeOpacity={0.8}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Text style={[styles.adminFabText, APP_ENV === 'production' && styles.adminFabTextProd]}>
+          {APP_ENV === 'production' ? '⚙️' : '⚙️ Admin'}
+        </Text>
+      </TouchableOpacity>
 
       {/* Admin PIN gate — required before opening AdminPanel */}
       <Modal visible={gateOpen} transparent animationType="fade" onRequestClose={() => setGateOpen(false)}>
@@ -163,6 +168,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
   },
   adminFabText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  // Discreet variant for production: small, semi-transparent gear in the corner.
+  adminFabProd: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 20,
+    opacity: 0.35,
+    backgroundColor: '#1a472a',
+  },
+  adminFabTextProd: { fontSize: 15 },
 
   gateOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 28 },
   gateBox:     { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 340 },

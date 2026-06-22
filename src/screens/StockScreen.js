@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,
   SafeAreaView, Alert, Modal, TextInput, ActivityIndicator,
   Platform, ScrollView, RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import {
-  collection, addDoc, getDocs, serverTimestamp, query, where,
+  collection, getDocs, doc, setDoc, serverTimestamp, query, where,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
+import { newId } from '../services/ids';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 
@@ -112,7 +114,8 @@ export default function StockScreen() {
     }
   }, []);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  // Reload on focus so stock reflects sales/orders/wastage logged on other tabs.
+  useFocusEffect(useCallback(() => { loadAll(); }, [loadAll]));
 
   const onRefresh = () => { setRefreshing(true); loadAll(); };
 
@@ -131,6 +134,7 @@ export default function StockScreen() {
       return;
     }
     setSavingWaste(true);
+    const logId = newId();
     const stockData = {
       veg_id:      wasteModal.veg_id,
       veg_name_te: wasteModal.veg_name_te,
@@ -141,7 +145,7 @@ export default function StockScreen() {
     };
 
     // 1. Save locally + update UI immediately
-    await LocalDB.append('today_stock_log', { ...stockData, saved_at: new Date().toISOString() });
+    await LocalDB.append('today_stock_log', { ...stockData, id: logId, saved_at: new Date().toISOString() });
     setRows((prev) => prev.map((r) =>
       r.id === wasteModal.veg_id
         ? { ...r, wasteQty: r.wasteQty + qty, remaining: parseFloat((r.remaining - qty).toFixed(3)) }
@@ -151,11 +155,11 @@ export default function StockScreen() {
     setWasteQty('');
     setSavingWaste(false);
 
-    // 2. Sync to Firestore in background
+    // 2. Sync to Firestore in background (idempotent — no duplicate on retry)
     try {
-      await addDoc(collection(db, 'stock_log'), { ...stockData, created_at: serverTimestamp() });
+      await setDoc(doc(db, 'stock_log', logId), { ...stockData, created_at: serverTimestamp() });
     } catch {
-      await SyncQueue.add({ collectionName: 'stock_log', data: stockData });
+      await SyncQueue.add({ type: 'createWithId', collectionName: 'stock_log', docId: logId, data: stockData });
     }
   };
 
@@ -165,6 +169,7 @@ export default function StockScreen() {
     const qty = parseFloat(carryQty);
     if (!qty || qty <= 0) { Alert.alert('పరిమాణం చేర్చండి', 'నిన్నటి స్టాక్ పరిమాణం నమోదు చేయండి.'); return; }
     setSavingCarry(true);
+    const logId = newId();
     const carryData = {
       veg_id:      carryModal.veg_id,
       veg_name_te: carryModal.veg_name_te,
@@ -175,7 +180,7 @@ export default function StockScreen() {
     };
 
     // 1. Save locally + update UI immediately
-    await LocalDB.append('today_stock_log', { ...carryData, saved_at: new Date().toISOString() });
+    await LocalDB.append('today_stock_log', { ...carryData, id: logId, saved_at: new Date().toISOString() });
     setRows((prev) => prev.map((r) =>
       r.id === carryModal.veg_id
         ? { ...r, carryQty: r.carryQty + qty, remaining: parseFloat((r.remaining + qty).toFixed(3)) }
@@ -185,11 +190,11 @@ export default function StockScreen() {
     setCarryQty('');
     setSavingCarry(false);
 
-    // 2. Sync to Firestore in background
+    // 2. Sync to Firestore in background (idempotent — no duplicate on retry)
     try {
-      await addDoc(collection(db, 'stock_log'), { ...carryData, created_at: serverTimestamp() });
+      await setDoc(doc(db, 'stock_log', logId), { ...carryData, created_at: serverTimestamp() });
     } catch {
-      await SyncQueue.add({ collectionName: 'stock_log', data: carryData });
+      await SyncQueue.add({ type: 'createWithId', collectionName: 'stock_log', docId: logId, data: carryData });
     }
   };
 

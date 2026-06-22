@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, SafeAreaView, Alert, KeyboardAvoidingView, Platform,
   ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   collection, doc, setDoc, getDocs, serverTimestamp, query, where,
 } from 'firebase/firestore';
@@ -64,9 +65,9 @@ export default function SellingPricesScreen() {
   const [loading,    setLoading]    = useState(true);
   const [lastSaved,  setLastSaved]  = useState(null);
 
-  useEffect(() => {
-    loadAll();
-  }, []);
+  // Reload on focus so newly-received vendor orders (buy-price hints) and any
+  // prices set elsewhere show up without needing an app restart.
+  useFocusEffect(useCallback(() => { loadAll(); }, []));
 
   const loadAll = async () => {
     const date = todayStr();

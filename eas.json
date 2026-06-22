@@ -18,8 +18,7 @@
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "515697102267",
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:515697102267:web:c699d57f33773be27f889e",
         "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "du4pmg4p7",
-        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "wmuy0oja",
-        "EXPO_PUBLIC_APP_PIN": "1234"
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "wmuy0oja"
       }
     },
     "staging": {
@@ -37,8 +36,7 @@
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "84768772431",
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:84768772431:web:b94279232adb7cbd9bf53a",
         "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "du4pmg4p7",
-        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "wmuy0oja",
-        "EXPO_PUBLIC_APP_PIN": "1234"
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "wmuy0oja"
       }
     },
     "production": {
@@ -47,7 +45,7 @@
       "env": {
         "APP_ENV": "production",
         "EXPO_PUBLIC_APP_ENV": "production",
-        "EXPO_PUBLIC_ENV_NAME": "",
+        "EXPO_PUBLIC_ENV_NAME": "PROD",
         "EXPO_PUBLIC_APP_NAME": "NRB Vegetables",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBZMHNsbRWeU6cd96GwmX028bizyvUO0bM",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "darsi-veg-shop.firebaseapp.com",
@@ -56,8 +54,7 @@
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "992622309653",
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:992622309653:web:019a248711e2f118c1f91c",
         "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "du4pmg4p7",
-        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "wmuy0oja",
-        "EXPO_PUBLIC_APP_PIN": "1234"
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "wmuy0oja"
       }
     }
   },

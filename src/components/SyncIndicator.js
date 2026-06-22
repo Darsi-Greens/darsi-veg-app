@@ -8,11 +8,16 @@ import { SyncQueue } from '../services/SyncQueue';
 //   • syncing     → spinner
 export default function SyncIndicator() {
   const [pending, setPending] = useState(0);
+  const [dead,    setDead]    = useState(0);
   const [syncing, setSyncing] = useState(false);
 
   const refresh = async () => {
-    const count = await SyncQueue.getPendingCount();
-    setPending(count);
+    const [p, d] = await Promise.all([
+      SyncQueue.getPendingCount(),
+      SyncQueue.getDeadCount(),
+    ]);
+    setPending(p);
+    setDead(d);
   };
 
   useEffect(() => {
@@ -22,15 +27,20 @@ export default function SyncIndicator() {
   }, []);
 
   const handlePress = async () => {
-    if (syncing || pending === 0) return;
+    if (syncing || (pending === 0 && dead === 0)) return;
     setSyncing(true);
+    // Tapping while items are dead-lettered first revives them for a retry.
+    if (dead > 0) await SyncQueue.retryDeadLetters();
     await SyncQueue.process();
     await refresh();
     setSyncing(false);
   };
 
-  const hasPending = pending > 0;
-  const dotColor = hasPending ? '#ffd166' : '#7BE0A4';
+  const hasDead    = dead > 0;
+  const hasPending = pending > 0 || hasDead;
+  // red = failed/needs attention, amber = pending, green = all synced
+  const dotColor = hasDead ? '#ff6b6b' : hasPending ? '#ffd166' : '#7BE0A4';
+  const count    = pending + dead;
 
   return (
     <TouchableOpacity
@@ -43,7 +53,7 @@ export default function SyncIndicator() {
       ) : (
         <>
           <View style={[styles.dot, { backgroundColor: dotColor }]} />
-          {hasPending && <Text style={styles.text}>{pending}</Text>}
+          {hasPending && <Text style={styles.text}>{count}</Text>}
         </>
       )}
     </TouchableOpacity>

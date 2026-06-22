@@ -13,11 +13,14 @@ const REGULAR_PIN_KEY = 'pin_regular';
 const DEFAULT_ADMIN   = '9999';
 const DEFAULT_REGULAR = '1234';
 
+const MIN_PIN = 4;
+const MAX_PIN = 8;
+
 const DIALPAD = [
   ['1', '2', '3'],
   ['4', '5', '6'],
   ['7', '8', '9'],
-  ['',  '0', '⌫'],
+  ['✓', '0', '⌫'],
 ];
 
 export default function PinLogin({ navigation }) {
@@ -50,34 +53,56 @@ export default function PinLogin({ navigation }) {
     ]).start();
   };
 
+  const fail = () => {
+    shake();
+    setError('తప్పు PIN · Wrong PIN');
+    setPin('');
+    setTimeout(() => setError(''), 2000);
+  };
+
+  // Validate an entered PIN. Returns true if it matched (and navigated).
+  const trySubmit = (value) => {
+    if (value === adminPin) {
+      setPin(''); setError('');
+      SecureStore.setItemAsync('authenticated', 'true');
+      navigation.replace('AdminPanel');
+      return true;
+    }
+    if (value === regPin) {
+      setPin(''); setError('');
+      SecureStore.setItemAsync('authenticated', 'true');
+      navigation.replace('Home');
+      return true;
+    }
+    if (value.length >= MIN_PIN) fail();
+    return false;
+  };
+
   const handleKey = (key) => {
     if (key === '⌫') {
       setPin((p) => p.slice(0, -1));
       setError('');
       return;
     }
-    if (key === '') return;
+    // Explicit submit — needed for PINs longer than another PIN's prefix,
+    // and for any PIN whose length the user controls (4–8 digits).
+    if (key === '✓') {
+      if (pin.length >= MIN_PIN) trySubmit(pin);
+      return;
+    }
+    if (pin.length >= MAX_PIN) return; // ignore extra digits past the cap
 
     const next = pin + key;
     setPin(next);
+    setError('');
 
-    if (next.length === 4) {
-      if (next === adminPin) {
-        setPin('');
-        setError('');
-        SecureStore.setItemAsync('authenticated', 'true');
-        navigation.replace('AdminPanel');
-      } else if (next === regPin) {
-        setPin('');
-        setError('');
-        SecureStore.setItemAsync('authenticated', 'true');
-        navigation.replace('Home');
-      } else {
-        shake();
-        setError('తప్పు PIN · Wrong PIN');
-        setPin('');
-        setTimeout(() => setError(''), 2000);
-      }
+    // Fast path: auto-submit the moment the entry exactly matches a PIN
+    // (covers the common 4-digit case with no extra tap). If it only reaches
+    // the max length without matching, treat as wrong.
+    if (next === adminPin || next === regPin) {
+      trySubmit(next);
+    } else if (next.length >= MAX_PIN) {
+      fail();
     }
   };
 
@@ -87,7 +112,7 @@ export default function PinLogin({ navigation }) {
       <Text style={styles.subtitle}>Darsi Greens</Text>
 
       <Animated.View style={[styles.dotsRow, { transform: [{ translateX: shakeAnim }] }]}>
-        {[0, 1, 2, 3].map((i) => (
+        {Array.from({ length: Math.min(MAX_PIN, Math.max(MIN_PIN, pin.length)) }).map((_, i) => (
           <View key={i} style={[styles.dot, pin.length > i && styles.dotFilled]} />
         ))}
       </Animated.View>

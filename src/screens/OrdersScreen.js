@@ -7,12 +7,13 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  collection, addDoc, updateDoc, getDocs, doc,
+  collection, addDoc, updateDoc, getDocs, doc, setDoc,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
+import { newId } from '../services/ids';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 import SelectionSheet from '../components/SelectionSheet';
@@ -484,18 +485,27 @@ export default function OrdersScreen() {
       received_at:    null,
     };
 
-    const localId = `local_${Date.now()}`;
-    await LocalDB.append('pending_orders', { ...orderData, localId, saved_at: new Date().toISOString() });
+    // Client-generated ID: the order has a real, stable Firestore ID from the
+    // moment it's created — even offline. This makes the create idempotent AND
+    // lets "received"/"paid" toggles sync against it before it has reached the
+    // server (previously those actions were lost on local-only orders).
+    const orderId = newId();
+    await LocalDB.append('pending_orders', { ...orderData, id: orderId, saved_at: new Date().toISOString() });
 
-    setOrders((prev) => [{ id: localId, ...orderData, placed_at: null }, ...prev]);
+    setOrders((prev) => [{ id: orderId, ...orderData, placed_at: null }, ...prev]);
     setShowAdd(false);
     resetForm();
     setSaving(false);
 
     try {
-      await addDoc(collection(db, 'vendor_orders'), { ...orderData, placed_at: serverTimestamp(), created_at: serverTimestamp() });
+      await setDoc(doc(db, 'vendor_orders', orderId), { ...orderData, placed_at: serverTimestamp(), created_at: serverTimestamp() });
     } catch {
-      await SyncQueue.add({ collectionName: 'vendor_orders', data: { ...orderData, placed_at: new Date().toISOString() } });
+      await SyncQueue.add({
+        type: 'createWithId',
+        collectionName: 'vendor_orders',
+        docId: orderId,
+        data: { ...orderData, placed_at: new Date().toISOString() },
+      });
     }
   };
 

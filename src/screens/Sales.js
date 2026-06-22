@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,12 @@ import {
   Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { useFocusEffect } from '@react-navigation/native';
+import { collection, addDoc, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
+import { newId } from '../services/ids';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 
@@ -101,14 +103,26 @@ export default function Sales() {
   const [payMode,    setPayMode]   = useState('cash');
   const [saving,     setSaving]    = useState(false);
 
-  useEffect(() => {
-    const date = todayStr();
-    Promise.all([
-      loadVegetables(),
-      loadPrices(date),
-      flushOfflineQueue(),
-    ]).finally(() => setLoading(false));
-  }, []);
+  const firstLoad = useRef(true);
+
+  // Reload every time the tab gains focus so price changes made on the ధరలు
+  // screen are reflected here immediately (tab screens stay mounted, so a
+  // mount-only effect would show stale prices). Spinner shows on first load only.
+  useFocusEffect(
+    useCallback(() => {
+      const date = todayStr();
+      Promise.all([
+        loadVegetables(),
+        loadPrices(date),
+        flushOfflineQueue(),
+      ]).finally(() => {
+        if (firstLoad.current) {
+          setLoading(false);
+          firstLoad.current = false;
+        }
+      });
+    }, [])
+  );
 
   // ── Data loaders ──────────────────────────────────────────────────────────────
 
@@ -150,15 +164,20 @@ export default function Sales() {
     // 2. Refresh from Firestore in background
     try {
       const snap = await getDocs(collection(db, 'prices', date, 'vegetables'));
-      const byId = {}, byName = {};
-      snap.forEach((d) => {
-        const data = d.data();
-        byId[d.id] = data;
-        const nameKey = (data.englishName || data.veg_name_en || '').toLowerCase().trim();
-        if (nameKey) byName[nameKey] = data;
-      });
-      setPriceById(byId);
-      setPriceByName(byName);
+      // Guard: an empty snapshot (e.g. prices just saved locally but the write
+      // hasn't committed yet, or no prices set today) must NOT overwrite the
+      // good values we loaded from LocalDB above.
+      if (!snap.empty) {
+        const byId = {}, byName = {};
+        snap.forEach((d) => {
+          const data = d.data();
+          byId[d.id] = data;
+          const nameKey = (data.englishName || data.veg_name_en || '').toLowerCase().trim();
+          if (nameKey) byName[nameKey] = data;
+        });
+        setPriceById(byId);
+        setPriceByName(byName);
+      }
     } catch {
       // Offline — use LocalDB prices above
     }
@@ -274,8 +293,13 @@ export default function Sales() {
 
     setSaving(true);
 
+    // Client-generated ID makes the write idempotent: if the network drops
+    // after the write commits but before the ack, the queued retry overwrites
+    // the same doc instead of creating a duplicate sale.
+    const saleId = newId();
+
     // 1. Save to LocalDB immediately
-    await LocalDB.append('today_sales', { ...saleDoc, saved_at: new Date().toISOString() });
+    await LocalDB.append('today_sales', { ...saleDoc, id: saleId, saved_at: new Date().toISOString() });
 
     // 2. Update UI immediately
     closeModal();
@@ -285,11 +309,11 @@ export default function Sales() {
     );
     setSaving(false);
 
-    // 3. Sync to Firestore in background
+    // 3. Sync to Firestore in background (idempotent setDoc with our ID)
     try {
-      await addDoc(collection(db, 'sales'), { ...saleDoc, created_at: serverTimestamp() });
+      await setDoc(doc(db, 'sales', saleId), { ...saleDoc, created_at: serverTimestamp() });
     } catch {
-      await SyncQueue.add({ collectionName: 'sales', data: saleDoc });
+      await SyncQueue.add({ type: 'createWithId', collectionName: 'sales', docId: saleId, data: saleDoc });
     }
   };
 

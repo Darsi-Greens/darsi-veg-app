@@ -594,12 +594,24 @@ function SettingsTab({ navigation }) {
   }, []);
 
   const handleSave = async () => {
-    if (adminPin.length < 4 || regularPin.length < 4) {
-      Alert.alert('PIN చిన్నది', 'PINs must be at least 4 digits.');
+    const onlyDigits = (s) => /^[0-9]+$/.test(s);
+    if (adminPin.length < 4 || regularPin.length < 4 || adminPin.length > 8 || regularPin.length > 8) {
+      Alert.alert('PIN పొడవు తప్పు', 'PINs must be 4 to 8 digits.');
+      return;
+    }
+    if (!onlyDigits(adminPin) || !onlyDigits(regularPin)) {
+      Alert.alert('PIN తప్పు', 'PINs must contain digits only.');
       return;
     }
     if (adminPin === regularPin) {
       Alert.alert('PIN తప్పు', 'Admin PIN and regular PIN must be different.');
+      return;
+    }
+    // One PIN must not be a prefix of the other, otherwise the login screen's
+    // auto-submit would always match the shorter one first and the longer PIN
+    // could never be entered.
+    if (adminPin.startsWith(regularPin) || regularPin.startsWith(adminPin)) {
+      Alert.alert('PIN తప్పు', 'One PIN cannot be the start of the other. Choose distinct PINs.');
       return;
     }
     setSaving(true);
