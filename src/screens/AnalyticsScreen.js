@@ -59,6 +59,9 @@ export default function AnalyticsScreen() {
   const [creditSales, setCreditSales] = useState([]);
   const [markingPaid, setMarkingPaid] = useState(null);
 
+  // Vendor dues state
+  const [vendorDues,  setVendorDues]  = useState([]);
+
   const loadToday = useCallback(async () => {
     const today = todayStr();
     try {
@@ -192,6 +195,32 @@ export default function AnalyticsScreen() {
     }
   }, []);
 
+  const loadVendorDues = useCallback(async () => {
+    try {
+      // Fetch all vendor_orders — filter client-side to avoid composite index
+      const snap = await getDocs(collection(db, 'vendor_orders'));
+      const dueMap = {};
+      snap.docs.forEach((d) => {
+        const o = d.data();
+        if (o.payment_status === 'paid') return;
+        const vid = o.vendor_id || o.vendor_name;
+        if (!vid) return;
+        dueMap[vid] = dueMap[vid] || {
+          name:    o.vendor_name,
+          name_en: o.vendor_name_en || o.vendor_name,
+          orderCount:    0,
+          totalPending:  0,
+        };
+        dueMap[vid].orderCount++;
+        dueMap[vid].totalPending += o.total_amount || 0;
+      });
+      const list = Object.values(dueMap).sort((a, b) => b.totalPending - a.totalPending);
+      setVendorDues(list);
+    } catch (e) {
+      console.warn('Vendor dues load error:', e);
+    }
+  }, []);
+
   const loadCredit = useCallback(async () => {
     try {
       // No orderBy — avoids requiring a composite Firestore index; sort client-side
@@ -210,10 +239,10 @@ export default function AnalyticsScreen() {
   }, []);
 
   const loadAll = useCallback(async () => {
-    await Promise.all([loadToday(), loadMonth(), loadCredit()]);
+    await Promise.all([loadToday(), loadMonth(), loadCredit(), loadVendorDues()]);
     setLoading(false);
     setRefreshing(false);
-  }, [loadToday, loadMonth, loadCredit]);
+  }, [loadToday, loadMonth, loadCredit, loadVendorDues]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
@@ -297,6 +326,7 @@ export default function AnalyticsScreen() {
 
   const td = todayData;
   const creditTotal = creditSales.reduce((sum, sale) => sum + (sale.total_amount || 0), 0);
+  const totalDues   = vendorDues.reduce((sum, v) => sum + v.totalPending, 0);
 
   return (
     <SafeAreaView style={s.container}>
@@ -311,9 +341,10 @@ export default function AnalyticsScreen() {
       {/* Tab bar */}
       <View style={s.tabs}>
         {[
-          { key: 'today', label: 'ఈరోజు' },
-          { key: 'month', label: 'నెల' },
-          { key: 'credit', label: `క్రెడిట్ ${creditSales.length > 0 ? `(${creditSales.length})` : ''}` },
+          { key: 'today',  label: 'ఈరోజు' },
+          { key: 'month',  label: 'నెల' },
+          { key: 'credit', label: `క్రెడిట్${creditSales.length > 0 ? ` (${creditSales.length})` : ''}` },
+          { key: 'dues',   label: `వెండర్ బాకీ${totalDues > 0 ? ' 🔴' : ''}` },
         ].map((t) => (
           <TouchableOpacity key={t.key} style={[s.tab, activeTab === t.key && s.tabActive]} onPress={() => setActiveTab(t.key)}>
             <Text style={[s.tabText, activeTab === t.key && s.tabTextActive]}>{t.label}</Text>
@@ -514,6 +545,50 @@ export default function AnalyticsScreen() {
             )}
           </>
         )}
+        {/* ═══════════════ VENDOR DUES TAB ═══════════════ */}
+        {activeTab === 'dues' && (
+          <>
+            {/* Total outstanding card */}
+            <View style={[s.card, { backgroundColor: totalDues > 0 ? '#fff5f5' : '#f0fff4' }]}>
+              <Text style={s.cardLabel}>చెల్లించాల్సిన మొత్తం · Total Outstanding</Text>
+              <Text style={[s.bigNum, { color: totalDues > 0 ? '#e74c3c' : '#2d6a4f' }]}>
+                ₹{totalDues.toFixed(2)}
+              </Text>
+              <Text style={{ fontSize: 13, color: '#888', marginTop: 4 }}>
+                {vendorDues.length} వెండర్లు · vendors with pending dues
+              </Text>
+            </View>
+
+            {vendorDues.length === 0 ? (
+              <View style={s.card}>
+                <Text style={{ textAlign: 'center', color: '#2d6a4f', fontSize: 16, paddingVertical: 20 }}>
+                  🎉 వెండర్ బాకీలు లేవు!{'\n'}All vendor dues cleared.
+                </Text>
+              </View>
+            ) : (
+              vendorDues.map((v, i) => (
+                <View key={i} style={s.dueCard}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.dueVendorNameEn}>{v.name_en || v.name}</Text>
+                    {v.name_en && v.name !== v.name_en ? (
+                      <Text style={s.dueVendorNameTe}>{v.name}</Text>
+                    ) : null}
+                    <Text style={s.dueMeta}>
+                      {v.orderCount} orders · ₹{v.totalPending.toFixed(0)} pending
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                    <Text style={s.dueAmt}>₹{v.totalPending.toFixed(0)}</Text>
+                    <View style={s.duePendingBadge}>
+                      <Text style={s.duePendingText}>🔴 బాకీ</Text>
+                    </View>
+                  </View>
+                </View>
+              ))
+            )}
+          </>
+        )}
+
       </ScrollView>
 
       {/* ── Expense modal ── */}
@@ -668,6 +743,20 @@ const s = StyleSheet.create({
   creditAmt:  { fontSize: 20, fontWeight: 'bold', color: '#e74c3c' },
   paidBtn:    { backgroundColor: '#2d6a4f', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
   paidBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  // Vendor dues
+  dueCard: {
+    backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 0,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderLeftWidth: 4, borderLeftColor: '#e74c3c',
+    elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
+  },
+  dueVendorNameEn: { fontSize: 16, fontWeight: '700', color: '#1a472a' },
+  dueVendorNameTe: { fontSize: 13, color: '#666', marginTop: 1 },
+  dueMeta:         { fontSize: 12, color: '#888', marginTop: 4 },
+  dueAmt:          { fontSize: 20, fontWeight: 'bold', color: '#e74c3c' },
+  duePendingBadge: { backgroundColor: '#fff3cd', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  duePendingText:  { fontSize: 11, fontWeight: '700', color: '#856404' },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

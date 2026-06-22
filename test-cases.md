@@ -347,3 +347,84 @@ Using Firestore REST API or Firebase console:
 **TC-VAL-08: PIN entry**
 - Enter wrong PIN → **Expected:** Error message, login blocked
 - Enter correct PIN 1234 → **Expected:** Navigate to main tabs
+
+---
+
+## 8. Payment Tracking + Receipt Upload (2026-06-21)
+
+### TC-PAY-01: Mark order as paid — Cash
+1. Open OrdersScreen → find any order card
+2. **Expected:** Bottom of card shows "🔴 చెల్లించలేదు · Unpaid" badge + "💰 చెల్లించాం" button
+3. Tap "💰 చెల్లించాం" → bottom sheet slides up
+4. **Expected:** Amount pre-filled with order total; mode buttons: నగదు / UPI / క్రెడిట్
+5. Select "నగదు (Cash)" → tap "✓ చెల్లింపు నమోదు"
+6. **Expected:** Sheet closes immediately; card now shows "✓ చెల్లించాం · Paid" green badge + paid date
+7. **Expected:** Firestore `vendor_orders/{id}` has payment_status="paid", payment_mode="cash"
+
+### TC-PAY-02: Mark order as paid — UPI with custom amount
+1. Open payment sheet for an order with total ₹2000
+2. Clear amount field → type ₹1800 (partial)
+3. Select "UPI" → tap Confirm
+4. **Expected:** Card shows paid badge with ₹1800 displayed; Firestore amount_paid=1800
+
+### TC-PAY-03: Mark order as paid — Credit
+1. Payment sheet → select "క్రెడిట్" mode → Confirm
+2. **Expected:** Card shows "✓ చెల్లించాం" with 📋 Credit icon
+
+### TC-PAY-04: Payment persists after navigation
+1. Mark order paid → navigate away to another tab
+2. Return to ఆర్డర్లు tab
+3. **Expected:** Order still shows green "✓ చెల్లించాం" badge (Firestore persisted)
+
+### TC-PAY-05: Payment modal cancel
+1. Tap "💰 చెల్లించాం" → payment sheet opens
+2. Tap dark overlay or swipe down to dismiss
+3. **Expected:** Sheet closes; order still shows "🔴 చెల్లించలేదు" (unchanged)
+
+### TC-REC-01: Add receipt via camera
+1. Open any order card → tap "📄 రసీదు చేర్చు · Add"
+2. Action sheet opens with Camera + Gallery options
+3. Tap "📷 ఫోటో తీయండి" → camera opens → take photo
+4. **Expected:** Receipt button immediately shows spinner (uploading)
+5. **Expected:** After upload: button turns green "📄 రసీదు చూడు · View"
+6. **Expected:** Firestore `vendor_orders/{id}` has receipt_url (Firebase Storage URL)
+
+### TC-REC-02: Add receipt via gallery
+1. Order card → "📄 రసీదు చేర్చు" → tap "🖼️ గ్యాలరీ నుండి"
+2. Select any image from gallery
+3. **Expected:** Same upload flow as TC-REC-01
+
+### TC-REC-03: View receipt full screen
+1. Order card with receipt uploaded → tap "📄 రసీదు చూడు · View"
+2. **Expected:** Full-screen viewer opens (dark background) showing receipt photo
+3. **Expected:** Header shows vendor name + date + order total
+4. **Expected:** Tap "✕" closes viewer and returns to orders
+
+### TC-REC-04: Receipt permission denied
+1. System: deny camera permission for the app
+2. Tap "📄 రసీదు చేర్చు" → Camera option
+3. **Expected:** Alert "అనుమతి అవసరం · Permission needed — Settings లో అనుమతి ఇవ్వండి"
+4. No crash; order card unchanged
+
+### TC-DUE-01: Vendor dues tab shows outstanding
+1. Place 2 orders for "సురేష్" (total ₹3000), mark both received, do NOT mark paid
+2. Place 1 order for "రాజు" (₹1500), mark received, do NOT mark paid
+3. Navigate to నివేదిక → "వెండర్ బాకీ" tab
+4. **Expected:** Total outstanding shows ₹4500 in red at top
+5. **Expected:** సురేష్ card shows "2 orders · ₹3000 pending"; రాజు card shows "1 orders · ₹1500 pending"
+6. **Expected:** Sorted by amount (సురేష్ first)
+
+### TC-DUE-02: Dues tab updates after payment
+1. From TC-DUE-01 state → go to OrdersScreen → mark సురేష్'s first order paid
+2. Return to నివేదిక → వెండర్ బాకీ tab → pull to refresh
+3. **Expected:** సురేష్ now shows only 1 order remaining, reduced total
+
+### TC-DUE-03: Dues tab badge when no dues
+1. Mark all pending vendor orders as paid
+2. **Expected:** వెండర్ బాకీ tab shows no 🔴 badge
+3. **Expected:** Tab content shows "🎉 వెండర్ బాకీలు లేవు! All vendor dues cleared."
+
+### TC-DUE-04: Dues tab red badge on tab
+1. Any vendor order with payment_status="pending" exists
+2. **Expected:** Tab label shows "వెండర్ బాకీ 🔴" (red indicator visible)
+3. After all orders paid → **Expected:** badge disappears from tab label
