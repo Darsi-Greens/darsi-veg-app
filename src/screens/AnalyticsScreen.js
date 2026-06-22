@@ -135,7 +135,7 @@ export default function AnalyticsScreen() {
     try {
       const [salesSnap, ordSnap, expSnap] = await Promise.all([
         getDocs(query(collection(db, 'sales'),          where('sale_date',    '>=', `${prefix}-01`), where('sale_date', '<=', `${prefix}-31`))),
-        getDocs(query(collection(db, 'vendor_orders'),  where('order_date',   '>=', `${prefix}-01`), where('order_date', '<=', `${prefix}-31`), where('status', '==', 'received'))),
+        getDocs(query(collection(db, 'vendor_orders'),  where('order_date',   '>=', `${prefix}-01`), where('order_date', '<=', `${prefix}-31`))),
         getDocs(query(collection(db, 'daily_expenses'), where('expense_date', '>=', `${prefix}-01`), where('expense_date', '<=', `${prefix}-31`))),
       ]);
 
@@ -157,6 +157,7 @@ export default function AnalyticsScreen() {
 
       ordSnap.docs.forEach((d) => {
         const o = d.data();
+        if (o.status !== 'received') return; // filter client-side — avoids composite index
         dayMap[o.order_date] = dayMap[o.order_date] || { sales: 0, cost: 0, expenses: 0 };
         dayMap[o.order_date].cost += o.total_amount || 0;
         const vid = o.vendor_id || o.vendor_name;

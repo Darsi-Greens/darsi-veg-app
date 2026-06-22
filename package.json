@@ -10,9 +10,9 @@
     "android": "cross-env APP_ENV=development expo start --android",
     "ios": "cross-env APP_ENV=development expo start --ios",
     "web": "expo start --web",
-    "build:dev": "eas build -p android --profile development",
-    "build:staging": "eas build -p android --profile staging",
-    "build:prod": "eas build -p android --profile production",
+    "build:dev": "npx eas-cli@latest build -p android --profile development",
+    "build:staging": "npx eas-cli@latest build -p android --profile staging",
+    "build:prod": "npx eas-cli@latest build -p android --profile production",
     "icons": "node scripts/generate-icons.js",
     "export:android": "cross-env APP_ENV=production expo export -p android"
   },
