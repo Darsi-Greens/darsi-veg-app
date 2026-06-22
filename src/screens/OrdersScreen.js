@@ -66,9 +66,11 @@ function fmtDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
-function fmtPaidDate(isoStr) {
-  if (!isoStr) return '';
-  const d = new Date(isoStr);
+function fmtPaidDate(ts) {
+  if (!ts) return '';
+  // Handle both ISO strings (local-first writes) and Firestore Timestamps (after sync/reload)
+  const d = ts?.toDate ? ts.toDate() : new Date(ts);
+  if (isNaN(d.getTime())) return '';
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const h = d.getHours(), m = d.getMinutes();
   return `${d.getDate()} ${months[d.getMonth()]} ${String(h%12||12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`;
