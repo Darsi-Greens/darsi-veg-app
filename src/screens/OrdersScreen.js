@@ -14,9 +14,12 @@ import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import SyncIndicator from '../components/SyncIndicator';
+import AppHeader from '../components/AppHeader';
 import SelectionSheet from '../components/SelectionSheet';
 import QuantityPicker from '../components/QuantityPicker';
+import { colors } from '../theme';
 
+const APP_ENV = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
 const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
 const PAY_MODES = [
   { key: 'cash',   label: 'నగదు',       emoji: '💵' },
@@ -609,30 +612,28 @@ export default function OrdersScreen() {
   if (loading && orders.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>ఆర్డర్లు</Text>
-          <SyncIndicator />
-        </View>
-        <ActivityIndicator style={{ marginTop: 48 }} size="large" color="#2d6a4f" />
+        <AppHeader title="ఆర్డర్లు" subtitle="Vendor Orders" />
+        <ActivityIndicator style={{ marginTop: 48 }} size="large" color={colors.primary} />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>ఆర్డర్లు</Text>
-          <Text style={styles.headerSub}>Orders — {todayStr()}</Text>
-        </View>
-        <TouchableOpacity style={styles.testBtn} onPress={handleTestWrite}>
-          <Text style={styles.testBtnText}>🔧 Test</Text>
+      <AppHeader
+        title="ఆర్డర్లు"
+        subtitle="Vendor Orders"
+        right={(
+          <TouchableOpacity style={styles.addBtn} onPress={() => setShowAdd(true)}>
+            <Text style={styles.addBtnText}>+ ఆర్డర్</Text>
+          </TouchableOpacity>
+        )}
+      />
+      {APP_ENV !== 'production' && (
+        <TouchableOpacity style={styles.testStrip} onPress={handleTestWrite}>
+          <Text style={styles.testStripText}>🔧 Firebase test write</Text>
         </TouchableOpacity>
-        <SyncIndicator />
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowAdd(true)}>
-          <Text style={styles.addBtnText}>+ ఆర్డర్</Text>
-        </TouchableOpacity>
-      </View>
+      )}
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.sectionHeader}>
@@ -917,7 +918,15 @@ export default function OrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f7f0' },
+  container: { flex: 1, backgroundColor: '#f1f7f2' },
+
+  addBtn:      { backgroundColor: '#52b788', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9 },
+  addBtnText:  { fontSize: 14, fontWeight: '800', color: '#fff' },
+  closeBtn:    { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  closeBtnText: { fontSize: 16, color: '#fff', fontWeight: '700' },
+
+  testStrip:     { backgroundColor: '#eef3ee', paddingVertical: 6, alignItems: 'center' },
+  testStripText: { fontSize: 11, color: '#8a978d', fontWeight: '600' },
 
   header: {
     flexDirection: 'row', alignItems: 'center',
@@ -927,25 +936,18 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
   headerSub:   { fontSize: 12, color: '#a8d5b5', marginTop: 2 },
 
-  testBtn:     { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  testBtnText: { fontSize: 12, color: '#fff', fontWeight: '600' },
-  addBtn:      { backgroundColor: '#52b788', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  addBtnText:  { fontSize: 14, fontWeight: '700', color: '#fff' },
-  closeBtn:    { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  closeBtnText: { fontSize: 16, color: '#fff', fontWeight: '700' },
-
   scroll: { padding: 16, paddingBottom: 48 },
 
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  sectionTitle:  { fontSize: 13, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.5 },
-  badge:         { borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 },
-  badgeText:     { fontSize: 13, fontWeight: '700' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  sectionTitle:  { fontSize: 13, fontWeight: '800', color: '#5b6b60', textTransform: 'uppercase', letterSpacing: 0.6 },
+  badge:         { borderRadius: 12, paddingHorizontal: 9, paddingVertical: 2, minWidth: 24, alignItems: 'center' },
+  badgeText:     { fontSize: 13, fontWeight: '800' },
 
-  orderCard:         { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: '#f6a623', elevation: 1 },
+  orderCard:         { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 12, borderLeftWidth: 5, borderLeftColor: '#f6a623', elevation: 2, shadowColor: '#1a472a', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   orderCardReceived: { borderLeftColor: '#2d6a4f', backgroundColor: '#f8fff8' },
   orderHeader:  { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  orderVendor:  { fontSize: 17, fontWeight: '700', color: '#1a472a' },
-  orderMeta:    { fontSize: 12, color: '#888', marginTop: 2 },
+  orderVendor:  { fontSize: 17, fontWeight: '800', color: '#1a472a' },
+  orderMeta:    { fontSize: 12, color: '#8a978d', marginTop: 2 },
   toggleWrap:   { alignItems: 'center', gap: 2 },
   toggleLabel:  { fontSize: 11, color: '#888', fontWeight: '600' },
   toggleLabelOn: { color: '#2d6a4f' },

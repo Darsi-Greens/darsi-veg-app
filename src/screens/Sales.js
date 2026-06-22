@@ -21,6 +21,7 @@ import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import SyncIndicator from '../components/SyncIndicator';
+import AppHeader from '../components/AppHeader';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_SIZE = (SCREEN_WIDTH - 48) / 2;
@@ -464,16 +465,7 @@ export default function Sales() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerTitle}>అమ్మకాలు</Text>
-            <Text style={styles.headerSub}>Sales — {todayStr()}</Text>
-          </View>
-          <SyncIndicator />
-        </View>
-      </View>
+      <AppHeader title="అమ్మకాలు" subtitle="Today's Sales" showDate />
 
       {/* Search bar */}
       <View style={styles.searchWrap}>

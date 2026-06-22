@@ -11,6 +11,7 @@ import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import SyncIndicator from '../components/SyncIndicator';
+import AppHeader from '../components/AppHeader';
 
 const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
 
@@ -250,17 +251,7 @@ export default function SellingPricesScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>ధరలు</Text>
-            <Text style={styles.headerSub}>Today's Selling Prices</Text>
-          </View>
-          <View style={styles.datePill}>
-            <Text style={styles.datePillDay}>{teluguDay()}</Text>
-            <Text style={styles.datePillDate}>{friendlyDate()}</Text>
-          </View>
-          <SyncIndicator />
-        </View>
+        <AppHeader title="ధరలు" subtitle="Today's Selling Prices" showDate />
         <ActivityIndicator style={{ marginTop: 48 }} size="large" color="#2d6a4f" />
       </SafeAreaView>
     );
@@ -269,18 +260,11 @@ export default function SellingPricesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>ధరలు</Text>
-            <Text style={styles.headerSub}>Today's Selling Prices</Text>
-            {lastSaved ? <Text style={styles.savedAt}>✓ సేవ్ అయింది {lastSaved}</Text> : null}
-          </View>
-          <View style={styles.datePill}>
-            <Text style={styles.datePillDay}>{teluguDay()}</Text>
-            <Text style={styles.datePillDate}>{friendlyDate()}</Text>
-          </View>
-          <SyncIndicator />
-        </View>
+        <AppHeader
+          title="ధరలు"
+          subtitle={lastSaved ? `✓ సేవ్ అయింది ${lastSaved}` : "Today's Selling Prices"}
+          showDate
+        />
 
         {Object.keys(buyPrices).length === 0 && (
           <View style={styles.hintBanner}>

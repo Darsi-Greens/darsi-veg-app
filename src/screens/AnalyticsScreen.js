@@ -12,6 +12,7 @@ import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import SyncIndicator from '../components/SyncIndicator';
+import AppHeader from '../components/AppHeader';
 
 function todayStr() {
   const d = new Date();
@@ -318,7 +319,7 @@ export default function AnalyticsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={s.container}>
-        <View style={s.header}><Text style={s.headerTitle}>నివేదిక</Text></View>
+        <AppHeader title="నివేదిక" subtitle="Analytics" />
         <ActivityIndicator style={{ marginTop: 48 }} size="large" color="#2d6a4f" />
       </SafeAreaView>
     );
@@ -330,13 +331,7 @@ export default function AnalyticsScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>నివేదిక</Text>
-          <Text style={s.headerSub}>Analytics · {todayStr()}</Text>
-        </View>
-        <SyncIndicator />
-      </View>
+      <AppHeader title="నివేదిక" subtitle="Analytics" />
 
       {/* Tab bar */}
       <View style={s.tabs}>

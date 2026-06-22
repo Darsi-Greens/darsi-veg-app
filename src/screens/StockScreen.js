@@ -11,6 +11,7 @@ import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import SyncIndicator from '../components/SyncIndicator';
+import AppHeader from '../components/AppHeader';
 
 const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
 
@@ -264,7 +265,7 @@ export default function StockScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}><Text style={styles.headerTitle}>స్టాక్</Text></View>
+        <AppHeader title="స్టాక్" subtitle="Stock" showDate />
         <ActivityIndicator style={{ marginTop: 48 }} size="large" color="#2d6a4f" />
       </SafeAreaView>
     );
@@ -272,15 +273,11 @@ export default function StockScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>స్టాక్ — {todayStr()}</Text>
-          <Text style={styles.headerSub}>
-            {rows.filter((r) => r.remaining <= 0).length} అయిపోయాయి  ·  {rows.filter((r) => r.remaining > 0 && r.remaining <= (LOW_THRESHOLD[r.unit] ?? 1)).length} తక్కువగా ఉన్నాయి
-          </Text>
-        </View>
-        <SyncIndicator />
-      </View>
+      <AppHeader
+        title="స్టాక్"
+        subtitle={`${rows.filter((r) => r.remaining <= 0).length} అయిపోయాయి · ${rows.filter((r) => r.remaining > 0 && r.remaining <= (LOW_THRESHOLD[r.unit] ?? 1)).length} తక్కువగా`}
+        showDate
+      />
 
       {rows.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
