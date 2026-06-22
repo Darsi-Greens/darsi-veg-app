@@ -631,11 +631,6 @@ export default function OrdersScreen() {
           </TouchableOpacity>
         )}
       />
-      {APP_ENV !== 'production' && (
-        <TouchableOpacity style={styles.testStrip} onPress={handleTestWrite}>
-          <Text style={styles.testStripText}>🔧 Firebase test write</Text>
-        </TouchableOpacity>
-      )}
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.sectionHeader}>

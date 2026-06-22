@@ -1,34 +1,67 @@
 {
   "cli": {
-    "version": ">= 20.0.0"
+    "version": ">= 12.0.0"
   },
   "build": {
     "development": {
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      },
+      "android": { "buildType": "apk" },
       "env": {
-        "APP_ENV": "development"
+        "APP_ENV": "development",
+        "EXPO_PUBLIC_APP_ENV": "development",
+        "EXPO_PUBLIC_ENV_NAME": "DEV",
+        "EXPO_PUBLIC_APP_NAME": "NRB Veg DEV",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyD298kaz_Lab9BFt_1q1IH7ExyQXEtuDXQ",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "darsi-veg-dev.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "darsi-veg-dev",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "darsi-veg-dev.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "515697102267",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:515697102267:web:c699d57f33773be27f889e",
+        "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "du4pmg4p7",
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "wmuy0oja",
+        "EXPO_PUBLIC_APP_PIN": "1234"
       }
     },
     "staging": {
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      },
+      "android": { "buildType": "apk" },
       "env": {
-        "APP_ENV": "staging"
+        "APP_ENV": "staging",
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_ENV_NAME": "STG",
+        "EXPO_PUBLIC_APP_NAME": "NRB Veg BETA",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyB8Trbi0Rg7JLpKGaaDmJlIoMTAO4xgPwE",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "darsi-veg-staging.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "darsi-veg-staging",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "darsi-veg-staging.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "84768772431",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:84768772431:web:b94279232adb7cbd9bf53a",
+        "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "du4pmg4p7",
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "wmuy0oja",
+        "EXPO_PUBLIC_APP_PIN": "1234"
       }
     },
     "production": {
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      },
+      "android": { "buildType": "apk" },
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_ENV_NAME": "",
+        "EXPO_PUBLIC_APP_NAME": "NRB Vegetables",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBZMHNsbRWeU6cd96GwmX028bizyvUO0bM",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "darsi-veg-shop.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "darsi-veg-shop",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "darsi-veg-shop.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "992622309653",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:992622309653:web:019a248711e2f118c1f91c",
+        "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "du4pmg4p7",
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "wmuy0oja",
+        "EXPO_PUBLIC_APP_PIN": "1234"
       }
     }
+  },
+  "submit": {
+    "production": {}
   }
 }
