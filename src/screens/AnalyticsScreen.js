@@ -110,31 +110,41 @@ export default function AnalyticsScreen() {
         }
       });
 
-      // Buy cost from orders
+      // Buy prices from orders. totalBuyCost = what was PURCHASED today (cash out),
+      // kept for context — but profit is computed on cost of goods SOLD (COGS),
+      // not the whole purchase, so a big morning order doesn't make the day look
+      // unprofitable. Leftover stock keeps its value and carries to tomorrow.
       let totalBuyCost = 0;
+      const buyPriceMap = {}; // veg_id → buy_price (covers wasted-but-unsold veg too)
       ordSnap.docs.forEach((d) => {
         const o = d.data();
         totalBuyCost += o.total_amount || 0;
         (o.items || []).forEach((item) => {
           const id = item.veg_id;
-          if (id && vegMap[id]) vegMap[id].buy_price = item.buy_price || 0;
+          if (id) {
+            buyPriceMap[id] = item.buy_price || 0;
+            if (vegMap[id]) vegMap[id].buy_price = item.buy_price || 0;
+          }
         });
       });
+
+      // Cost of goods SOLD = Σ (sold qty × buy price)
+      const cogs = Object.values(vegMap).reduce((sum, v) => sum + (v.buy_price || 0) * (v.qty || 0), 0);
 
       // Expenses
       const expList = expSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
       const totalExpenses = expList.reduce((s, e) => s + (e.amount || 0), 0);
       setExpenses(expList);
 
-      // Wastage cost
+      // Wastage cost (use the order buy-price map so wasted-but-unsold veg count)
       let wasteCost = 0;
       stockSnap.docs.forEach((d) => {
         const w = d.data();
-        const veg = vegMap[w.veg_id];
-        if (veg) wasteCost += (veg.buy_price || 0) * (w.quantity || 0);
+        const bp = buyPriceMap[w.veg_id] ?? vegMap[w.veg_id]?.buy_price ?? 0;
+        wasteCost += bp * (w.quantity || 0);
       });
 
-      const grossProfit = totalSales - totalBuyCost;
+      const grossProfit = totalSales - cogs;
       const netProfit   = grossProfit - totalExpenses - wasteCost;
 
       // Top sellers
@@ -143,7 +153,7 @@ export default function AnalyticsScreen() {
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 5);
 
-      setTodayData({ totalSales, totalTxns, totalBuyCost, totalExpenses, wasteCost, grossProfit, netProfit, payBreak, topVegs, vegMap });
+      setTodayData({ totalSales, totalTxns, totalBuyCost, cogs, totalExpenses, wasteCost, grossProfit, netProfit, payBreak, topVegs, vegMap });
     } catch (e) {
       console.warn('Analytics today load error:', e);
     }
@@ -413,11 +423,14 @@ export default function AnalyticsScreen() {
                 {inr(td?.netProfit ?? 0)}
               </Text>
               <View style={s.profitBreak}>
-                <ProfitRow label="అమ్మకాలు"  val={td?.totalSales}    color="#2d6a4f" plus />
-                <ProfitRow label="కొనుగోలు"  val={td?.totalBuyCost}  color="#e74c3c" />
-                <ProfitRow label="ఖర్చులు"   val={td?.totalExpenses} color="#f6a623" />
-                <ProfitRow label="వేస్ట్"    val={td?.wasteCost}     color="#999" />
+                <ProfitRow label="అమ్మకాలు"          val={td?.totalSales}    color="#2d6a4f" plus />
+                <ProfitRow label="అమ్మిన సరుకు ఖర్చు" val={td?.cogs}          color="#e74c3c" />
+                <ProfitRow label="ఖర్చులు"           val={td?.totalExpenses} color="#f6a623" />
+                <ProfitRow label="వేస్ట్"            val={td?.wasteCost}     color="#999" />
               </View>
+              <Text style={s.profitNote}>
+                నేటి కొనుగోలు · Bought today: {inr(td?.totalBuyCost ?? 0)}  ·  మిగిలిన సరుకు రేపటికి
+              </Text>
             </View>
 
             {/* Payment breakdown */}
@@ -729,6 +742,7 @@ const s = StyleSheet.create({
 
   // Profit breakdown
   profitBreak: { gap: 2 },
+  profitNote:  { fontSize: 11, color: '#888', marginTop: 10, fontStyle: 'italic' },
 
   // Payment
   payRow:   { flexDirection: 'row', paddingVertical: 8 },
