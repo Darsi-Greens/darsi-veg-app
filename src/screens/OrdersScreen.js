@@ -15,6 +15,7 @@ import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import { newId } from '../services/ids';
 import { inr } from '../utils/money';
+import { Voice } from '../services/Speak';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 import SelectionSheet from '../components/SelectionSheet';
@@ -206,6 +207,10 @@ export default function OrdersScreen() {
       return oId === orderId ? { ...o, status: newStatus, received_at: newReceivedAt } : o;
     }));
 
+    // Speak the new state
+    const vName = order.vendor_name || '';
+    Voice.speak(newStatus === 'received' ? `${vName} సరుకు అందింది` : `${vName} సరుకు రాలేదు`);
+
     if (order.id && !order.id.startsWith('local_')) {
       updateDoc(doc(db, 'vendor_orders', order.id), {
         status:      newStatus,
@@ -287,6 +292,7 @@ export default function OrdersScreen() {
     }));
     setPayModal(null);
     setPayingSave(false);
+    Voice.speak(`చెల్లింపు నమోదు అయింది, ${Voice.money(amount)}`);
 
     // Background sync — payment fields
     if (order.id && !order.id.startsWith('local_')) {
@@ -443,6 +449,7 @@ export default function OrdersScreen() {
       return next;
     });
     setVegSheetOpenIdx(null);
+    Voice.speak(veg.name_te); // speak the chosen vegetable
   };
 
   const grandTotal = formItems.reduce((s, i) => s + i.lineTotal, 0);
@@ -456,11 +463,13 @@ export default function OrdersScreen() {
 
   const handleSave = async () => {
     if (!selectedVendor) {
+      Voice.speak('వెండర్ ఎంచుకోండి');
       Alert.alert('వెండర్ ఎంచుకోండి', 'సరఫరాదారుని ఎంచుకోండి.');
       return;
     }
     const valid = formItems.filter((i) => i.veg && parseFloat(i.qty) > 0);
     if (!valid.length) {
+      Voice.speak('కనీసం ఒక కూరగాయ చేర్చండి');
       Alert.alert('ఐటమ్స్ లేవు', 'కనీసం ఒక కూరగాయ చేర్చండి.');
       return;
     }
@@ -497,6 +506,7 @@ export default function OrdersScreen() {
     setShowAdd(false);
     resetForm();
     setSaving(false);
+    Voice.speak(`ఆర్డర్ సేవ్ అయింది, మొత్తం ${Voice.money(orderData.total_amount)}`);
 
     try {
       await setDoc(doc(db, 'vendor_orders', orderId), { ...orderData, placed_at: serverTimestamp(), created_at: serverTimestamp() });
@@ -637,7 +647,7 @@ export default function OrdersScreen() {
         title="ఆర్డర్లు"
         subtitle="Vendor Orders"
         right={(
-          <TouchableOpacity style={styles.addBtn} onPress={() => setShowAdd(true)}>
+          <TouchableOpacity style={styles.addBtn} onPress={() => { setShowAdd(true); Voice.speak('కొత్త ఆర్డర్'); }}>
             <Text style={styles.addBtnText}>+ ఆర్డర్</Text>
           </TouchableOpacity>
         )}
@@ -750,6 +760,13 @@ export default function OrdersScreen() {
                               const clean = v.replace(',', '.');
                               if (/^\d*\.?\d*$/.test(clean)) updateField(idx, 'price', clean);
                             }}
+                            onBlur={() => {
+                              // Speak the line total once the buy price is entered,
+                              // e.g. "టమాట 6 కేజీ, మొత్తం 120 రూపాయలు"
+                              if (item.veg && item.lineTotal > 0) {
+                                Voice.speak(`${item.veg.name_te} ${item.qty} ${UNIT_TE[item.veg.unit] ?? 'కేజీ'}, మొత్తం ${Voice.money(item.lineTotal)}`);
+                              }
+                            }}
                           />
                         </View>
                       </View>
@@ -768,7 +785,7 @@ export default function OrdersScreen() {
                   </View>
                 ))}
 
-                <TouchableOpacity style={styles.addItemBtn} onPress={() => setFormItems((p) => [...p, newItem()])}>
+                <TouchableOpacity style={styles.addItemBtn} onPress={() => { setFormItems((p) => [...p, newItem()]); Voice.speak('వేరొక కూరగాయ చేర్చండి'); }}>
                   <Text style={styles.addItemText}>+ వేరొక కూరగాయ చేర్చు</Text>
                 </TouchableOpacity>
 
@@ -800,7 +817,7 @@ export default function OrdersScreen() {
         onClose={() => setVendorSheetOpen(false)}
         title="వెండర్ ఎంచుకోండి · Select Vendor"
         items={vendors}
-        onSelect={(v) => { setSelectedVendor(v); setVendorSheetOpen(false); }}
+        onSelect={(v) => { setSelectedVendor(v); setVendorSheetOpen(false); Voice.speak(`వెండర్, ${v.name}`); }}
         selectedId={selectedVendor?.id}
         type="vendor"
       />
