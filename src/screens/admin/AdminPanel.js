@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { LocalDB } from '../../services/LocalDB';
+import { Voice } from '../../services/Speak';
 
 const ADMIN_PIN_KEY   = 'pin_admin';
 const REGULAR_PIN_KEY = 'pin_regular';
@@ -581,6 +582,8 @@ function SettingsTab({ navigation }) {
   const [regularPin, setRegularPin] = useState('');
   const [shopName,   setShopName]   = useState('');
   const [saving,     setSaving]     = useState(false);
+  const [voiceOn,    setVoiceOn]    = useState(!Voice.isMuted());
+  const [teVoice,    setTeVoice]    = useState(null); // null=checking, true/false
 
   useEffect(() => {
     (async () => {
@@ -590,8 +593,12 @@ function SettingsTab({ navigation }) {
       setAdminPin(ap ?? '9999');
       setRegularPin(rp ?? '1234');
       setShopName(sn ?? 'Darsi Greens');
+      setTeVoice(await Voice.hasTeluguVoice());
     })();
   }, []);
+
+  const toggleVoice = (v) => { setVoiceOn(v); Voice.setMuted(!v); if (v) Voice.speak('వాయిస్ ఆన్ అయింది'); };
+  const testVoice   = () => { Voice.setMuted(false); setVoiceOn(true); Voice.speak('నమస్తే, ఇది దర్శి గ్రీన్స్. టమాట, నలభై రూపాయలు.'); };
 
   const handleSave = async () => {
     const onlyDigits = (s) => /^[0-9]+$/.test(s);
@@ -675,6 +682,22 @@ function SettingsTab({ navigation }) {
         onChangeText={setShopName}
         placeholder="Shop name"
       />
+
+      <Text style={styles.sectionTitle}>🔊 వాయిస్ · Voice</Text>
+      <View style={styles.switchRow}>
+        <Text style={styles.switchLabel}>తెలుగు వాయిస్ · Speak in Telugu</Text>
+        <Switch value={voiceOn} onValueChange={toggleVoice} thumbColor={voiceOn ? '#2e7d32' : '#aaa'} />
+      </View>
+      <TouchableOpacity style={styles.testVoiceBtn} onPress={testVoice}>
+        <Text style={styles.testVoiceText}>🔊 వాయిస్ పరీక్ష · Test voice</Text>
+      </TouchableOpacity>
+      <Text style={styles.voiceStatus}>
+        {teVoice === null
+          ? 'తనిఖీ చేస్తోంది... · checking…'
+          : teVoice
+            ? '✅ తెలుగు వాయిస్ అందుబాటులో ఉంది · Telugu voice available'
+            : '⚠️ తెలుగు వాయిస్ లేదు — ఫోన్ Settings → Text-to-speech లో install చేయండి · Telugu voice not found; install it in phone TTS settings'}
+      </Text>
 
       <TouchableOpacity
         style={[styles.saveBtn, { marginTop: 16 }]}
@@ -821,6 +844,9 @@ const styles = StyleSheet.create({
   saveBtnText:  { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1a472a', marginTop: 20, marginBottom: 10 },
+  testVoiceBtn:  { marginTop: 4, padding: 12, backgroundColor: '#e8f5ec', borderRadius: 10, alignItems: 'center' },
+  testVoiceText: { fontSize: 15, color: '#2e7d32', fontWeight: '700' },
+  voiceStatus:   { fontSize: 12, color: '#666', marginTop: 8, lineHeight: 18 },
   envBox:       { marginTop: 28, padding: 14, backgroundColor: '#e8f5e9', borderRadius: 10, alignItems: 'center' },
   envLabel:     { fontSize: 14, color: '#2e7d32', fontWeight: '600' },
   backAppBtn:   { marginTop: 20, padding: 14, backgroundColor: '#e8f5ec', borderRadius: 10, alignItems: 'center' },

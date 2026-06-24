@@ -26,6 +26,7 @@ import { newId } from '../services/ids';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 import { inr } from '../utils/money';
+import { Voice } from '../services/Speak';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_SIZE = (SCREEN_WIDTH - 48) / 2;
@@ -273,6 +274,9 @@ export default function Sales() {
     setActiveUnit(tabs[0]);
     setQty(String(QTY_STEP[tabs[0]] ?? 1));
     setPayMode('cash');
+    // Speak the vegetable + today's price, e.g. "టమాట, 40 రూపాయలు"
+    const p = getSellPrice(veg);
+    Voice.speak(p ? `${veg.name_te}, ${Voice.money(p)}` : `${veg.name_te}, ధర లేదు`);
   };
 
   const closeModal = () => setSelected(null);
@@ -336,6 +340,8 @@ export default function Sales() {
     setTodayTotal((t) => t + totalAmount);
     setTodayCount((c) => c + 1);
     showToast(`✓ ${vegName} — ${inr(totalAmount)}`);
+    // Speak the confirmation, e.g. "అమ్మకం నమోదు అయింది, 105 రూపాయలు"
+    Voice.speak(`అమ్మకం నమోదు అయింది, ${Voice.money(totalAmount)}`);
     setSaving(false);
 
     // 3. Sync to Firestore in background (idempotent setDoc with our ID)

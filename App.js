@@ -9,6 +9,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import AdminPanel  from './src/screens/admin/AdminPanel';
 import { SyncQueue } from './src/services/SyncQueue';
 import { LocalDB }   from './src/services/LocalDB';
+import { Voice }     from './src/services/Speak';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from './src/firebase/config';
 
@@ -51,6 +52,7 @@ export default function App() {
   const syncTimer = useRef(null);
 
   useEffect(() => {
+    Voice.init();
     SecureStore.getItemAsync('authenticated')
       .then((val) => setInitialRoute(val === 'true' ? 'Home' : 'Login'))
       .catch(() => setInitialRoute('Login'));
