@@ -14,6 +14,7 @@
     "build:staging": "npx eas-cli@latest build -p android --profile staging",
     "build:prod": "npx eas-cli@latest build -p android --profile production",
     "dev:fresh": "powershell -ExecutionPolicy Bypass -File scripts/dev-fresh.ps1",
+    "dev:tunnel": "cross-env APP_ENV=staging expo start --tunnel",
     "ship": "powershell -ExecutionPolicy Bypass -File scripts/ship.ps1",
     "guide:pdf": "powershell -ExecutionPolicy Bypass -File scripts/gen-test-pdf.ps1",
     "icons": "node scripts/generate-icons.js",
