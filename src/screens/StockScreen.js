@@ -459,7 +459,7 @@ export default function StockScreen() {
             />
             <View style={styles.modalBtns}>
               <TouchableOpacity style={styles.modalCancel} onPress={() => setWasteModal(null)}>
-                <Text style={styles.modalCancelText}>రద్దు</Text>
+                <Text style={styles.modalCancelText}>✕ వద్దు</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalConfirm, savingWaste && { backgroundColor: '#74c69d' }]} onPress={saveWastage} disabled={savingWaste}>
                 <Text style={styles.modalConfirmText}>{savingWaste ? 'ఆగండి...' : 'సరే'}</Text>
@@ -491,7 +491,7 @@ export default function StockScreen() {
             />
             <View style={styles.modalBtns}>
               <TouchableOpacity style={styles.modalCancel} onPress={() => setCarryModal(null)}>
-                <Text style={styles.modalCancelText}>రద్దు</Text>
+                <Text style={styles.modalCancelText}>✕ వద్దు</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalConfirm, savingCarry && { backgroundColor: '#74c69d' }]} onPress={saveCarry} disabled={savingCarry}>
                 <Text style={styles.modalConfirmText}>{savingCarry ? 'ఆగండి...' : 'సరే'}</Text>
@@ -524,7 +524,7 @@ export default function StockScreen() {
                 />
                 <View style={styles.modalBtns}>
                   <TouchableOpacity style={styles.modalCancel} onPress={() => setVerifyModal(null)}>
-                    <Text style={styles.modalCancelText}>రద్దు</Text>
+                    <Text style={styles.modalCancelText}>✕ వద్దు</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modalConfirm, savingVerify && { backgroundColor: '#74c69d' }]} onPress={handleVerifyCount} disabled={savingVerify}>
                     <Text style={styles.modalConfirmText}>{savingVerify ? '...' : 'లెక్క చూడు · Check'}</Text>

@@ -415,7 +415,7 @@ export default function AnalyticsScreen() {
           <>
             {/* Customer counter */}
             <View style={s.card}>
-              <Text style={s.cardLabel}>ఈరోజు వచ్చిన కస్టమర్లు / Customers Today</Text>
+              <Text style={s.cardLabel}>👤 ఈరోజు వచ్చిన కస్టమర్లు / Customers Today</Text>
               <View style={s.counterRow}>
                 <TouchableOpacity style={s.countBtn} onPress={() => adjustCount(-1)}>
                   <Text style={s.countBtnText}>−</Text>
@@ -684,7 +684,7 @@ export default function AnalyticsScreen() {
             />
             <View style={s.modalBtns}>
               <TouchableOpacity style={s.modalCancel} onPress={() => setExpenseModal(false)}>
-                <Text style={s.modalCancelText}>రద్దు</Text>
+                <Text style={s.modalCancelText}>✕ వద్దు</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.modalConfirm, savingExp && { backgroundColor: '#74c69d' }]} onPress={saveExpense} disabled={savingExp}>
                 <Text style={s.modalConfirmText}>{savingExp ? 'ఆగండి...' : '✓ సరే'}</Text>

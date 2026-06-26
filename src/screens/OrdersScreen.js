@@ -249,7 +249,7 @@ export default function OrdersScreen() {
       [
         { text: '📷 ఫోటో తీయండి · Camera',    onPress: () => grabPaymentPhoto('camera') },
         { text: '🖼️ గ్యాలరీ నుండి · Gallery', onPress: () => grabPaymentPhoto('gallery') },
-        { text: 'వద్దు · Cancel', style: 'cancel' },
+        { text: '✕ వద్దు · Cancel', style: 'cancel' },
       ]
     );
   };
@@ -292,7 +292,7 @@ export default function OrdersScreen() {
     }));
     setPayModal(null);
     setPayingSave(false);
-    Voice.speak(`పైసలిచ్చారు, ${Voice.money(amount)}`);
+    Voice.speak(`చెల్లించాం, ${Voice.money(amount)}`);
 
     // Background sync — payment fields
     if (order.id && !order.id.startsWith('local_')) {
@@ -357,7 +357,7 @@ export default function OrdersScreen() {
       [
         { text: '📷 ఫోటో తీయండి · Camera', onPress: () => pickReceipt(order, 'camera') },
         { text: '🖼️ గ్యాలరీ నుండి · Gallery', onPress: () => pickReceipt(order, 'gallery') },
-        { text: 'వద్దు · Cancel', style: 'cancel' },
+        { text: '✕ వద్దు · Cancel', style: 'cancel' },
       ]
     );
   };
@@ -584,7 +584,7 @@ export default function OrdersScreen() {
               {/* Paid state */}
               <View style={styles.payStatusRow}>
                 <View style={styles.paidBadge}>
-                  <Text style={styles.paidBadgeText}>✓ పైసలిచ్చారు · Paid</Text>
+                  <Text style={styles.paidBadgeText}>✓ చెల్లించాం · Paid</Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={styles.paidMeta}>
@@ -617,13 +617,13 @@ export default function OrdersScreen() {
             /* Pending state — receipt is captured together with payment */
             <View style={styles.payStatusRow}>
               <View style={styles.pendingBadge}>
-                <Text style={styles.pendingBadgeText}>🔴 పైసలివ్వలేదు · Unpaid</Text>
+                <Text style={styles.pendingBadgeText}>🔴 చెల్లించలేదు · Unpaid</Text>
               </View>
               <TouchableOpacity
                 style={styles.markPaidBtn}
                 onPress={() => openPayModal(order)}
               >
-                <Text style={styles.markPaidBtnText}>💰 డబ్బివ్వండి · Pay</Text>
+                <Text style={styles.markPaidBtnText}>💰 చెల్లించండి · Pay</Text>
               </TouchableOpacity>
             </View>
           )}

@@ -501,7 +501,7 @@ export default function Sales() {
               {/* Action buttons */}
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeModal}>
-                  <Text style={styles.cancelText}>వద్దు / Cancel</Text>
+                  <Text style={styles.cancelText}>✕ వద్దు / Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.confirmBtn, saving && styles.confirmDisabled]}
@@ -509,7 +509,7 @@ export default function Sales() {
                   disabled={saving}
                 >
                   <Text style={styles.confirmText}>
-                    {saving ? 'ఆగండి...' : 'అమ్మండి · Record Sale'}
+                    {saving ? 'ఆగండి...' : '🛒 అమ్మండి · Record Sale'}
                   </Text>
                 </TouchableOpacity>
               </View>

@@ -192,7 +192,7 @@ function VendorsTab() {
       `${v.name_en || v.name} తొలగించాలా?`,
       'Soft delete — vendor will be hidden.',
       [
-        { text: 'వద్దు · Cancel', style: 'cancel' },
+        { text: '✕ వద్దు · Cancel', style: 'cancel' },
         {
           text: 'తొలగించు · Delete',
           style: 'destructive',
@@ -359,7 +359,7 @@ function VendorsTab() {
 
             <View style={styles.modalBtns}>
               <TouchableOpacity onPress={() => setModalOpen(false)} style={styles.cancelBtn}>
-                <Text>వద్దు</Text>
+                <Text>✕ వద్దు</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleSave} style={styles.saveBtn} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>సేవ్</Text>}
@@ -562,7 +562,7 @@ function VegetablesTab() {
 
             <View style={styles.modalBtns}>
               <TouchableOpacity onPress={() => setModalOpen(false)} style={styles.cancelBtn}>
-                <Text>వద్దు</Text>
+                <Text>✕ వద్దు</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleSave} style={styles.saveBtn} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>సేవ్</Text>}
@@ -635,7 +635,7 @@ function SettingsTab({ navigation }) {
 
   const handleLogout = () => {
     Alert.alert('లాగౌట్ · Logout', 'PIN స్క్రీన్‌కి వెళ్ళాలా? · Go to PIN screen?', [
-      { text: 'వద్దు · Cancel', style: 'cancel' },
+      { text: '✕ వద్దు · Cancel', style: 'cancel' },
       {
         text: 'లాగౌట్ · Logout',
         style: 'destructive',
