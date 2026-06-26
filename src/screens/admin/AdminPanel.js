@@ -215,7 +215,7 @@ function VendorsTab() {
   return (
     <View style={{ flex: 1 }}>
       <TouchableOpacity style={styles.addBtn} onPress={openAdd}>
-        <Text style={styles.addBtnText}>+ వెండర్ చేర్చండి · Add Vendor</Text>
+        <Text style={styles.addBtnText}>➕ వెండర్ చేర్చండి · Add Vendor</Text>
       </TouchableOpacity>
 
       <FlatList
@@ -461,7 +461,7 @@ function VegetablesTab() {
   return (
     <View style={{ flex: 1 }}>
       <TouchableOpacity style={styles.addBtn} onPress={openAdd}>
-        <Text style={styles.addBtnText}>+ కూరగాయ చేర్చండి · Add Vegetable</Text>
+        <Text style={styles.addBtnText}>➕ కూరగాయ చేర్చండి · Add Vegetable</Text>
       </TouchableOpacity>
 
       <FlatList

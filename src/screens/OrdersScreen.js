@@ -648,7 +648,7 @@ export default function OrdersScreen() {
         subtitle="Vendor Orders"
         right={(
           <TouchableOpacity style={styles.addBtn} onPress={() => { setShowAdd(true); Voice.speak('కొత్త ఆర్డర్'); }}>
-            <Text style={styles.addBtnText}>+ ఆర్డర్</Text>
+            <Text style={styles.addBtnText}>➕ ఆర్డర్</Text>
           </TouchableOpacity>
         )}
       />
@@ -786,7 +786,7 @@ export default function OrdersScreen() {
                 ))}
 
                 <TouchableOpacity style={styles.addItemBtn} onPress={() => { setFormItems((p) => [...p, newItem()]); Voice.speak('వేరొక కూరగాయ చేర్చండి'); }}>
-                  <Text style={styles.addItemText}>+ వేరొక కూరగాయ చేర్చు</Text>
+                  <Text style={styles.addItemText}>➕ వేరొక కూరగాయ చేర్చు</Text>
                 </TouchableOpacity>
 
                 <View style={styles.grandTotalRow}>

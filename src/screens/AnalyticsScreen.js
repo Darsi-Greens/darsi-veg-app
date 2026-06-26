@@ -460,7 +460,7 @@ export default function AnalyticsScreen() {
               <View style={s.cardHeaderRow}>
                 <Text style={s.cardLabel}>ఖర్చులు / Expenses</Text>
                 <TouchableOpacity style={s.addExpBtn} onPress={() => setExpenseModal(true)}>
-                  <Text style={s.addExpBtnText}>+ చేర్చు</Text>
+                  <Text style={s.addExpBtnText}>➕ చేర్చు</Text>
                 </TouchableOpacity>
               </View>
               {expenses.length === 0 ? (

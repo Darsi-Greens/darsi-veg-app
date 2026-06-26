@@ -371,7 +371,7 @@ export default function StockScreen() {
           onPress={() => openVerify(item)}
         >
           <Text style={[styles.verifyBtnText, isVerified && styles.verifyBtnTextDone]}>
-            {isVerified ? '✓ లెక్క చూశారు · Verified (మళ్ళీ?)' : '✓ స్టాక్ లెక్క చూడండి · Verify stock'}
+            {isVerified ? '🔍 లెక్క చూశారు · Verified (మళ్ళీ?)' : '🔍 స్టాక్ లెక్క చూడండి · Verify stock'}
           </Text>
         </TouchableOpacity>
 

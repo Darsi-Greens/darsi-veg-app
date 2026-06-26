@@ -52,9 +52,9 @@ const toBaseQty = (qty, unit) => (unit === 'gm' ? qty / 1000 : qty);
 
 // ── Payment modes ───────────────────────────────────────────────────────────────
 const PAYMENT_MODES = [
-  { key: 'cash',   te: 'క్యాష్', en: 'Cash'   },
-  { key: 'upi',    te: 'UPI',   en: 'UPI'    },
-  { key: 'credit', te: 'అప్పు', en: 'Credit' },
+  { key: 'cash',   te: '💵 క్యాష్', en: 'Cash'   },
+  { key: 'upi',    te: '📱 UPI', en: 'UPI'    },
+  { key: 'credit', te: '📋 అప్పు', en: 'Credit' },
 ];
 
 // ── Async storage keys ──────────────────────────────────────────────────────────
