@@ -11,6 +11,7 @@ import SellingPricesScreen from '../screens/SellingPricesScreen';
 import Sales              from '../screens/Sales';
 import StockScreen        from '../screens/StockScreen';
 import AnalyticsScreen    from '../screens/AnalyticsScreen';
+import { Voice }          from '../services/Speak';
 
 const Tab = createBottomTabNavigator();
 const APP_ENV = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
@@ -52,6 +53,9 @@ export default function AppNavigator({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
+        screenListeners={({ route }) => ({
+          tabPress: () => Voice.speak(route.name), // speak the tab name on tap
+        })}
         screenOptions={({ route }) => {
           const tab = TABS.find((t) => t.name === route.name);
           return {

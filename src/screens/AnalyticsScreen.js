@@ -14,6 +14,7 @@ import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import { newId } from '../services/ids';
 import { inr } from '../utils/money';
+import { Voice } from '../services/Speak';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 
@@ -293,6 +294,7 @@ export default function AnalyticsScreen() {
     const today = todayStr();
     const newCount = Math.max(0, customerCount + delta);
     setCustomerCount(newCount);
+    Voice.speak(`${newCount} కస్టమర్లు`);
     // Persist locally first so the count survives an app restart while offline.
     await LocalDB.set(`customer_count_${today}`, newCount);
 
@@ -338,6 +340,7 @@ export default function AnalyticsScreen() {
     setExpAmount('');
     setExpNote('');
     setSavingExp(false);
+    Voice.speak(`ఖర్చు ${Voice.money(amt)} నమోదు అయింది`);
 
     // 2. Sync to Firestore in background (idempotent — no duplicate on retry)
     try {
@@ -357,6 +360,7 @@ export default function AnalyticsScreen() {
         credit_paid_at: serverTimestamp(),
       });
       setCreditSales((p) => p.filter((s) => s.id !== sale.id));
+      Voice.speak(`బాకీ అందింది, ${Voice.money(sale.total_amount || 0)}`);
     } catch {
       Alert.alert('లోపం', 'అప్‌డేట్ విఫలమైంది.');
     } finally {
@@ -391,7 +395,14 @@ export default function AnalyticsScreen() {
           { key: 'credit', label: `క్రెడిట్${creditSales.length > 0 ? ` (${creditSales.length})` : ''}` },
           { key: 'dues',   label: `వెండర్ బాకీ${totalDues > 0 ? ' 🔴' : ''}` },
         ].map((t) => (
-          <TouchableOpacity key={t.key} style={[s.tab, activeTab === t.key && s.tabActive]} onPress={() => setActiveTab(t.key)}>
+          <TouchableOpacity
+            key={t.key}
+            style={[s.tab, activeTab === t.key && s.tabActive]}
+            onPress={() => {
+              setActiveTab(t.key);
+              Voice.speak({ today: 'ఈరోజు', month: 'నెల', credit: 'క్రెడిట్', dues: 'వెండర్ బాకీ' }[t.key] || '');
+            }}
+          >
             <Text style={[s.tabText, activeTab === t.key && s.tabTextActive]}>{t.label}</Text>
           </TouchableOpacity>
         ))}

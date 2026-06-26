@@ -12,6 +12,7 @@ import { db } from '../firebase/config';
 import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import { newId } from '../services/ids';
+import { Voice } from '../services/Speak';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 
@@ -179,6 +180,7 @@ export default function StockScreen() {
     setWasteModal(null);
     setWasteQty('');
     setSavingWaste(false);
+    Voice.speak(`వేస్ట్ ${qty} ${UNIT_TE[wasteModal.unit] ?? 'కేజీ'} నమోదు అయింది`);
 
     // 2. Sync to Firestore in background (idempotent — no duplicate on retry)
     try {
@@ -222,6 +224,7 @@ export default function StockScreen() {
     setCarryModal(null);
     setCarryQty('');
     setSavingCarry(false);
+    Voice.speak(`నిన్నటి స్టాక్ ${target} ${UNIT_TE[carryModal.unit] ?? 'కేజీ'}`);
     await writeCarryOver(carryModal.veg_id, carryModal.veg_name_te, carryModal.unit, target, dateStr);
   };
 
@@ -251,6 +254,8 @@ export default function StockScreen() {
     setVerifyModal({ row });
     setActualQty(row.remaining > 0 ? String(row.remaining) : '');
     setVerifyStep('count');
+    const u = UNIT_TE[row.unit] ?? 'కేజీ';
+    Voice.speak(`${row.name_te}, లెక్క ప్రకారం ${row.remaining > 0 ? row.remaining : 0} ${u}. ఇప్పుడు ఎంత ఉంది?`);
   };
 
   // Apply the verification outcome: optional waste/sale adjustment + set
@@ -272,6 +277,12 @@ export default function StockScreen() {
     setVerifyModal(null);
     setActualQty('');
     setVerifyStep('count');
+
+    // Speak the outcome
+    const u = UNIT_TE[row.unit] ?? 'కేజీ';
+    if (applied?.type === 'waste')      Voice.speak(`వేస్ట్ ${applied.qty} ${u} నమోదు అయింది`);
+    else if (applied?.type === 'sale')  Voice.speak(`అమ్మకం ${applied.qty} ${u} నమోదు అయింది`);
+    else                                Voice.speak('సరిచూశారు, సరిగ్గా ఉంది');
   };
 
   const handleVerifyCount = async () => {

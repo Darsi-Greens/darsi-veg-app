@@ -13,6 +13,7 @@ import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
+import { Voice } from '../services/Speak';
 
 const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
 
@@ -168,6 +169,7 @@ export default function SellingPricesScreen() {
     setLastSaved(now);
     setEditMode({});
     setSaving(false);
+    Voice.speak('ధరలు సేవ్ అయ్యాయి'); // "prices saved"
 
     // 3. Sync to Firestore in background
     try {
@@ -225,6 +227,7 @@ export default function SellingPricesScreen() {
                   placeholderTextColor="#aaa"
                   value={sellVal}
                   onChangeText={(v) => handleChange(item.id, v)}
+                  onBlur={() => { if (parseFloat(sellVal) > 0) Voice.speak(`${item.name_te}, ${Voice.money(sellVal)}`); }}
                   returnKeyType="next"
                 />
                 <Text style={styles.unit}>/{UNIT_TE[item.unit] ?? 'కేజీ'}</Text>
@@ -239,7 +242,7 @@ export default function SellingPricesScreen() {
             </Text>
             <TouchableOpacity
               style={styles.editBtn}
-              onPress={() => setEditMode((prev) => ({ ...prev, [item.id]: true }))}
+              onPress={() => { setEditMode((prev) => ({ ...prev, [item.id]: true })); Voice.speak(item.name_te); }}
             >
               <Text style={styles.editBtnText}>✏️</Text>
             </TouchableOpacity>
