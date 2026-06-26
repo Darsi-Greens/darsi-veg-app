@@ -52,7 +52,7 @@ const toBaseQty = (qty, unit) => (unit === 'gm' ? qty / 1000 : qty);
 
 // ── Payment modes ───────────────────────────────────────────────────────────────
 const PAYMENT_MODES = [
-  { key: 'cash',   te: 'నగదు',  en: 'Cash'   },
+  { key: 'cash',   te: 'క్యాష్', en: 'Cash'   },
   { key: 'upi',    te: 'UPI',   en: 'UPI'    },
   { key: 'credit', te: 'అప్పు', en: 'Credit' },
 ];
@@ -276,7 +276,7 @@ export default function Sales() {
     setPayMode('cash');
     // Speak the vegetable + today's price, e.g. "టమాట, 40 రూపాయలు"
     const p = getSellPrice(veg);
-    Voice.speak(p ? `${veg.name_te}, ${Voice.money(p)}` : `${veg.name_te}, ధర లేదు`);
+    Voice.speak(p ? `${veg.name_te}, ${Voice.money(p)}` : `${veg.name_te}, రేటు లేదు`);
   };
 
   const closeModal = () => setSelected(null);
@@ -296,15 +296,15 @@ export default function Sales() {
   const handleConfirm = async () => {
     const quantity = parseFloat(qty);
     if (!quantity || quantity <= 0) {
-      Alert.alert('పరిమాణం లోపం', 'సరైన పరిమాణం నమోదు చేయండి.\nEnter a valid quantity.');
+      Alert.alert('ఎంత?', 'ఎంత అమ్మారో సరిగ్గా రాయండి.\nEnter a valid quantity.');
       return;
     }
 
     const sellPrice = getSellPrice(selected);
     if (!sellPrice) {
       Alert.alert(
-        'ధర లేదు / No Price',
-        'ధరలు స్క్రీన్‌లో ఈ కూరగాయకి ధర సెట్ చేయండి.\nSet price in the Prices tab first.'
+        'రేటు లేదు / No Price',
+        'ముందు ధరలు పేజీలో దీనికి రేటు పెట్టండి.\nSet price in the Prices tab first.'
       );
       return;
     }
@@ -340,8 +340,8 @@ export default function Sales() {
     setTodayTotal((t) => t + totalAmount);
     setTodayCount((c) => c + 1);
     showToast(`✓ ${vegName} — ${inr(totalAmount)}`);
-    // Speak the confirmation, e.g. "అమ్మకం నమోదు అయింది, 105 రూపాయలు"
-    Voice.speak(`అమ్మకం నమోదు అయింది, ${Voice.money(totalAmount)}`);
+    // Speak the confirmation, e.g. "అమ్మాను, 105 రూపాయలు"
+    Voice.speak(`అమ్మాను, ${Voice.money(totalAmount)}`);
     setSaving(false);
 
     // 3. Sync to Firestore in background (idempotent setDoc with our ID)
@@ -384,7 +384,7 @@ export default function Sales() {
           <Text style={styles.cardNameTe} numberOfLines={1}>{item.name_te}</Text>
           <Text style={styles.cardNameEn} numberOfLines={1}>{item.name_en}</Text>
           <Text style={[styles.cardPrice, !sellPrice && styles.cardNoPrice]}>
-            {sellPrice ? `${inr(sellPrice)}/${unitLabel}` : 'ధర సెట్ చేయండి ⚠️'}
+            {sellPrice ? `${inr(sellPrice)}/${unitLabel}` : 'రేటు పెట్టండి ⚠️'}
           </Text>
         </View>
       </TouchableOpacity>
@@ -428,7 +428,7 @@ export default function Sales() {
               <Text style={sellPrice ? styles.sheetPrice : styles.sheetNoPrice}>
                 {sellPrice
                   ? `${inr(sellPrice)} / ${UNIT_TE[UNIT_TABS[selected.unit]?.[0] ?? 'pcs']}`
-                  : 'ఈ రోజు ధర లేదు / No price set today'}
+                  : 'ఈ రోజు రేటు లేదు / No price set today'}
               </Text>
 
               {/* Unit selector — only shown when veg has multiple units (kg/gm) */}
@@ -480,7 +480,7 @@ export default function Sales() {
               </View>
 
               {/* Payment mode */}
-              <Text style={styles.sectionLabel}>చెల్లింపు / Payment</Text>
+              <Text style={styles.sectionLabel}>డబ్బు ఎలా / Payment</Text>
               <View style={styles.payRow}>
                 {PAYMENT_MODES.map((m) => (
                   <TouchableOpacity
@@ -501,7 +501,7 @@ export default function Sales() {
               {/* Action buttons */}
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeModal}>
-                  <Text style={styles.cancelText}>రద్దు / Cancel</Text>
+                  <Text style={styles.cancelText}>వద్దు / Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.confirmBtn, saving && styles.confirmDisabled]}
@@ -509,7 +509,7 @@ export default function Sales() {
                   disabled={saving}
                 >
                   <Text style={styles.confirmText}>
-                    {saving ? 'సేవ్...' : 'అమ్మకం నమోదు · Record Sale'}
+                    {saving ? 'ఆగండి...' : 'అమ్మండి · Record Sale'}
                   </Text>
                 </TouchableOpacity>
               </View>

@@ -149,7 +149,7 @@ export default function StockScreen() {
 
   const saveWastage = async () => {
     const qty = parseFloat(wasteQty);
-    if (!qty || qty <= 0) { Alert.alert('పరిమాణం చేర్చండి', 'వేస్ట్ పరిమాణం నమోదు చేయండి.'); return; }
+    if (!qty || qty <= 0) { Alert.alert('ఎంత? రాయండి', 'ఎంత పాడైందో రాయండి.'); return; }
     // Check wastage does not exceed remaining stock
     const row = rows.find((r) => r.id === wasteModal?.veg_id);
     if (row && qty > row.remaining) {
@@ -208,7 +208,7 @@ export default function StockScreen() {
 
   const saveCarry = async () => {
     const target = parseFloat(carryQty);
-    if (isNaN(target) || target < 0) { Alert.alert('పరిమాణం చేర్చండి', 'నిన్నటి స్టాక్ పరిమాణం నమోదు చేయండి.'); return; }
+    if (isNaN(target) || target < 0) { Alert.alert('ఎంత? రాయండి', 'నిన్న ఎంత మిగిలిందో రాయండి.'); return; }
     const current = carryModal.current || 0;
     if (target === current) { setCarryModal(null); setCarryQty(''); return; } // no-op
 
@@ -224,7 +224,7 @@ export default function StockScreen() {
     setCarryModal(null);
     setCarryQty('');
     setSavingCarry(false);
-    Voice.speak(`నిన్నటి స్టాక్ ${target} ${UNIT_TE[carryModal.unit] ?? 'కేజీ'}`);
+    Voice.speak(`నిన్న మిగిలింది ${target} ${UNIT_TE[carryModal.unit] ?? 'కేజీ'}`);
     await writeCarryOver(carryModal.veg_id, carryModal.veg_name_te, carryModal.unit, target, dateStr);
   };
 
@@ -282,12 +282,12 @@ export default function StockScreen() {
     const u = UNIT_TE[row.unit] ?? 'కేజీ';
     if (applied?.type === 'waste')      Voice.speak(`వేస్ట్ ${applied.qty} ${u} నమోదు అయింది`);
     else if (applied?.type === 'sale')  Voice.speak(`అమ్మకం ${applied.qty} ${u} నమోదు అయింది`);
-    else                                Voice.speak('సరిచూశారు, సరిగ్గా ఉంది');
+    else                                Voice.speak('లెక్క చూశారు, సరిగ్గా ఉంది');
   };
 
   const handleVerifyCount = async () => {
     const actual = parseFloat(actualQty);
-    if (isNaN(actual) || actual < 0) { Alert.alert('పరిమాణం చేర్చండి', 'ఇప్పుడు ఎంత ఉంది నమోదు చేయండి.'); return; }
+    if (isNaN(actual) || actual < 0) { Alert.alert('ఎంత? రాయండి', 'ఇప్పుడు ఎంత ఉంది నమోదు చేయండి.'); return; }
     const diff = parseFloat((verifyModal.row.remaining - actual).toFixed(3));
     if (diff === 0) { setSavingVerify(true); await finishVerify(actual, null); setSavingVerify(false); return; }
     if (diff < 0) {
@@ -332,7 +332,7 @@ export default function StockScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.nameTE}>{item.name_te}</Text>
             <Text style={styles.nameEN}>{item.name_en}</Text>
-            {isVerified && <Text style={styles.verifiedTag}>✓ సరిచూశారు · Verified</Text>}
+            {isVerified && <Text style={styles.verifiedTag}>✓ లెక్క చూశారు · Verified</Text>}
           </View>
           {/* Remaining — big number */}
           <View style={styles.remainWrap}>
@@ -371,7 +371,7 @@ export default function StockScreen() {
           onPress={() => openVerify(item)}
         >
           <Text style={[styles.verifyBtnText, isVerified && styles.verifyBtnTextDone]}>
-            {isVerified ? '✓ సరిచూశారు · Verified (మళ్ళీ?)' : '✓ స్టాక్ సరిచూడండి · Verify stock'}
+            {isVerified ? '✓ లెక్క చూశారు · Verified (మళ్ళీ?)' : '✓ స్టాక్ లెక్క చూడండి · Verify stock'}
           </Text>
         </TouchableOpacity>
 
@@ -381,7 +381,7 @@ export default function StockScreen() {
             style={styles.carryBtn}
             onPress={() => { setCarryModal({ veg_id: item.id, veg_name_te: item.name_te, unit: item.unit, current: item.carryQty }); setCarryQty(item.carryQty ? String(item.carryQty) : ''); }}
           >
-            <Text style={styles.carryBtnText}>📦 నిన్నటి స్టాక్</Text>
+            <Text style={styles.carryBtnText}>📦 నిన్న మిగిలింది</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.wasteBtn}
@@ -392,7 +392,7 @@ export default function StockScreen() {
         </View>
 
         {isOut  && <View style={styles.statusBadge}><Text style={styles.statusBadgeTextOut}>అయిపోయింది / Out of Stock</Text></View>}
-        {isLow  && !isOut && <View style={[styles.statusBadge, { backgroundColor: '#fff3cd' }]}><Text style={[styles.statusBadgeTextOut, { color: '#856404' }]}>తక్కువగా ఉంది / Low Stock</Text></View>}
+        {isLow  && !isOut && <View style={[styles.statusBadge, { backgroundColor: '#fff3cd' }]}><Text style={[styles.statusBadgeTextOut, { color: '#856404' }]}>కొంచెమే ఉంది / Low Stock</Text></View>}
 
         {needReorder && (
           <View style={styles.reorderHint}>
@@ -418,7 +418,7 @@ export default function StockScreen() {
     <SafeAreaView style={styles.container}>
       <AppHeader
         title="స్టాక్"
-        subtitle={`${rows.filter((r) => r.remaining <= 0).length} అయిపోయాయి · ${rows.filter((r) => r.remaining > 0 && r.remaining <= (LOW_THRESHOLD[r.unit] ?? 1)).length} తక్కువగా`}
+        subtitle={`${rows.filter((r) => r.remaining <= 0).length} అయిపోయాయి · ${rows.filter((r) => r.remaining > 0 && r.remaining <= (LOW_THRESHOLD[r.unit] ?? 1)).length} కొంచెమే`}
         showDate
       />
 
@@ -446,12 +446,12 @@ export default function StockScreen() {
       <Modal visible={!!wasteModal} transparent animationType="fade" onRequestClose={() => setWasteModal(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>🗑 వేస్ట్ నమోదు</Text>
+            <Text style={styles.modalTitle}>🗑 పాడైంది</Text>
             <Text style={styles.modalSub}>{wasteModal?.veg_name_te}</Text>
             <TextInput
               style={styles.modalInput}
               keyboardType="decimal-pad"
-              placeholder={`పరిమాణం (${UNIT_TE[wasteModal?.unit] ?? 'కేజీ'})`}
+              placeholder={`ఎంత (${UNIT_TE[wasteModal?.unit] ?? 'కేజీ'})`}
               placeholderTextColor="#aaa"
               value={wasteQty}
               onChangeText={(v) => /^\d*\.?\d*$/.test(v) && setWasteQty(v)}
@@ -462,7 +462,7 @@ export default function StockScreen() {
                 <Text style={styles.modalCancelText}>రద్దు</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalConfirm, savingWaste && { backgroundColor: '#74c69d' }]} onPress={saveWastage} disabled={savingWaste}>
-                <Text style={styles.modalConfirmText}>{savingWaste ? 'నమోదు...' : 'సేవ్'}</Text>
+                <Text style={styles.modalConfirmText}>{savingWaste ? 'ఆగండి...' : 'సరే'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -473,17 +473,17 @@ export default function StockScreen() {
       <Modal visible={!!carryModal} transparent animationType="fade" onRequestClose={() => setCarryModal(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>📦 నిన్నటి స్టాక్</Text>
+            <Text style={styles.modalTitle}>📦 నిన్న మిగిలింది</Text>
             <Text style={styles.modalSub}>{carryModal?.veg_name_te} — నిన్న ఎంత మిగిలింది?</Text>
             {carryModal?.current > 0 ? (
               <Text style={styles.modalNote}>
-                ప్రస్తుతం నమోదైంది · Already set: {carryModal.current} {UNIT_TE[carryModal?.unit] ?? 'కేజీ'}
+                ఇప్పటికే ఉంది · Already set: {carryModal.current} {UNIT_TE[carryModal?.unit] ?? 'కేజీ'}
               </Text>
             ) : null}
             <TextInput
               style={styles.modalInput}
               keyboardType="decimal-pad"
-              placeholder={`పరిమాణం (${UNIT_TE[carryModal?.unit] ?? 'కేజీ'})`}
+              placeholder={`ఎంత (${UNIT_TE[carryModal?.unit] ?? 'కేజీ'})`}
               placeholderTextColor="#aaa"
               value={carryQty}
               onChangeText={(v) => /^\d*\.?\d*$/.test(v) && setCarryQty(v)}
@@ -494,7 +494,7 @@ export default function StockScreen() {
                 <Text style={styles.modalCancelText}>రద్దు</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalConfirm, savingCarry && { backgroundColor: '#74c69d' }]} onPress={saveCarry} disabled={savingCarry}>
-                <Text style={styles.modalConfirmText}>{savingCarry ? 'నమోదు...' : 'సేవ్'}</Text>
+                <Text style={styles.modalConfirmText}>{savingCarry ? 'ఆగండి...' : 'సరే'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -507,7 +507,7 @@ export default function StockScreen() {
           <View style={styles.modalBox}>
             {verifyStep === 'count' ? (
               <>
-                <Text style={styles.modalTitle}>✓ స్టాక్ సరిచూడండి</Text>
+                <Text style={styles.modalTitle}>✓ స్టాక్ లెక్క చూడండి</Text>
                 <Text style={styles.modalSub}>{verifyModal?.row?.name_te}</Text>
                 <Text style={styles.modalNote}>
                   లెక్క ప్రకారం · Should be: {(verifyModal?.row?.remaining ?? 0).toFixed(1)} {UNIT_TE[verifyModal?.row?.unit] ?? 'కేజీ'}
@@ -516,7 +516,7 @@ export default function StockScreen() {
                 <TextInput
                   style={styles.modalInput}
                   keyboardType="decimal-pad"
-                  placeholder={`పరిమాణం (${UNIT_TE[verifyModal?.row?.unit] ?? 'కేజీ'})`}
+                  placeholder={`ఎంత (${UNIT_TE[verifyModal?.row?.unit] ?? 'కేజీ'})`}
                   placeholderTextColor="#aaa"
                   value={actualQty}
                   onChangeText={(v) => /^\d*\.?\d*$/.test(v) && setActualQty(v)}
@@ -527,7 +527,7 @@ export default function StockScreen() {
                     <Text style={styles.modalCancelText}>రద్దు</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modalConfirm, savingVerify && { backgroundColor: '#74c69d' }]} onPress={handleVerifyCount} disabled={savingVerify}>
-                    <Text style={styles.modalConfirmText}>{savingVerify ? '...' : 'సరిచూడు · Check'}</Text>
+                    <Text style={styles.modalConfirmText}>{savingVerify ? '...' : 'లెక్క చూడు · Check'}</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -551,7 +551,7 @@ export default function StockScreen() {
                   onPress={() => handleReason('sale')}
                   disabled={savingVerify}
                 >
-                  <Text style={styles.reasonBtnTitle}>🛒 అమ్మకం నమోదు కాలేదు</Text>
+                  <Text style={styles.reasonBtnTitle}>🛒 అమ్మాను కానీ రాయలేదు</Text>
                   <Text style={styles.reasonBtnSub}>A sale wasn't recorded — add it (revenue)</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.modalCancel, { marginTop: 4 }]} onPress={() => setVerifyStep('count')}>

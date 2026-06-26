@@ -22,7 +22,7 @@ const TABS = [
   { name: 'ధరలు',       component: SellingPricesScreen,  icon: 'pricetag',    iconOff: 'pricetag-outline',    label: 'ధరలు' },
   { name: 'అమ్మకాలు',   component: Sales,                icon: 'cart',        iconOff: 'cart-outline',        label: 'అమ్మకాలు' },
   { name: 'స్టాక్',     component: StockScreen,          icon: 'layers',      iconOff: 'layers-outline',      label: 'స్టాక్' },
-  { name: 'నివేదిక',    component: AnalyticsScreen,      icon: 'stats-chart', iconOff: 'stats-chart-outline', label: 'నివేదిక' },
+  { name: 'లెక్కలు',    component: AnalyticsScreen,      icon: 'stats-chart', iconOff: 'stats-chart-outline', label: 'లెక్కలు' },
 ];
 
 export default function AppNavigator({ navigation }) {
@@ -45,7 +45,7 @@ export default function AppNavigator({ navigation }) {
       setError('');
       navigation.navigate('AdminPanel');
     } else {
-      setError('తప్పు PIN · Wrong admin PIN');
+      setError('తప్పు నంబర్ · Wrong admin PIN');
       setPin('');
     }
   };
@@ -120,7 +120,7 @@ export default function AppNavigator({ navigation }) {
         <View style={styles.gateOverlay}>
           <View style={styles.gateBox}>
             <Text style={styles.gateTitle}>⚙️ Admin PIN</Text>
-            <Text style={styles.gateSub}>అడ్మిన్ PIN నమోదు చేయండి</Text>
+            <Text style={styles.gateSub}>అడ్మిన్ నంబర్ కొట్టండి</Text>
 
             <TextInput
               style={styles.gateInput}
@@ -140,7 +140,7 @@ export default function AppNavigator({ navigation }) {
 
             <View style={styles.gateBtns}>
               <TouchableOpacity style={styles.gateCancel} onPress={() => setGateOpen(false)}>
-                <Text style={styles.gateCancelText}>రద్దు · Cancel</Text>
+                <Text style={styles.gateCancelText}>వద్దు · Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.gateGo} onPress={submitPin}>
                 <Text style={styles.gateGoText}>తెరువు · Open</Text>

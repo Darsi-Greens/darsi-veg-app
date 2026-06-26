@@ -25,9 +25,9 @@ import { colors } from '../theme';
 const APP_ENV = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
 const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
 const PAY_MODES = [
-  { key: 'cash',   label: 'నగదు',       emoji: '💵' },
+  { key: 'cash',   label: 'క్యాష్',     emoji: '💵' },
   { key: 'upi',    label: 'UPI',        emoji: '📱' },
-  { key: 'credit', label: 'క్రెడిట్', emoji: '📋' },
+  { key: 'credit', label: 'అప్పు',      emoji: '📋' },
 ];
 
 const FALLBACK_VEGETABLES = [
@@ -245,11 +245,11 @@ export default function OrdersScreen() {
     }
     Alert.alert(
       '📄 రసీదు ఫోటో · Receipt photo',
-      'చెల్లింపు రుజువు · Proof of payment',
+      'డబ్బు ఇచ్చిన రుజువు · Proof of payment',
       [
         { text: '📷 ఫోటో తీయండి · Camera',    onPress: () => grabPaymentPhoto('camera') },
         { text: '🖼️ గ్యాలరీ నుండి · Gallery', onPress: () => grabPaymentPhoto('gallery') },
-        { text: 'రద్దు · Cancel', style: 'cancel' },
+        { text: 'వద్దు · Cancel', style: 'cancel' },
       ]
     );
   };
@@ -292,7 +292,7 @@ export default function OrdersScreen() {
     }));
     setPayModal(null);
     setPayingSave(false);
-    Voice.speak(`చెల్లింపు నమోదు అయింది, ${Voice.money(amount)}`);
+    Voice.speak(`పైసలిచ్చారు, ${Voice.money(amount)}`);
 
     // Background sync — payment fields
     if (order.id && !order.id.startsWith('local_')) {
@@ -357,7 +357,7 @@ export default function OrdersScreen() {
       [
         { text: '📷 ఫోటో తీయండి · Camera', onPress: () => pickReceipt(order, 'camera') },
         { text: '🖼️ గ్యాలరీ నుండి · Gallery', onPress: () => pickReceipt(order, 'gallery') },
-        { text: 'రద్దు · Cancel', style: 'cancel' },
+        { text: 'వద్దు · Cancel', style: 'cancel' },
       ]
     );
   };
@@ -469,8 +469,8 @@ export default function OrdersScreen() {
     }
     const valid = formItems.filter((i) => i.veg && parseFloat(i.qty) > 0);
     if (!valid.length) {
-      Voice.speak('కనీసం ఒక కూరగాయ చేర్చండి');
-      Alert.alert('ఐటమ్స్ లేవు', 'కనీసం ఒక కూరగాయ చేర్చండి.');
+      Voice.speak('ఒక్క కూరగాయ అయినా పెట్టండి');
+      Alert.alert('కూరగాయ లేదు', 'ఒక్క కూరగాయ అయినా పెట్టండి.');
       return;
     }
     setSaving(true);
@@ -506,7 +506,7 @@ export default function OrdersScreen() {
     setShowAdd(false);
     resetForm();
     setSaving(false);
-    Voice.speak(`ఆర్డర్ సేవ్ అయింది, మొత్తం ${Voice.money(orderData.total_amount)}`);
+    Voice.speak(`సరుకు రాసాను, మొత్తం ${Voice.money(orderData.total_amount)}`);
 
     try {
       await setDoc(doc(db, 'vendor_orders', orderId), { ...orderData, placed_at: serverTimestamp(), created_at: serverTimestamp() });
@@ -584,7 +584,7 @@ export default function OrdersScreen() {
               {/* Paid state */}
               <View style={styles.payStatusRow}>
                 <View style={styles.paidBadge}>
-                  <Text style={styles.paidBadgeText}>✓ చెల్లించాం · Paid</Text>
+                  <Text style={styles.paidBadgeText}>✓ పైసలిచ్చారు · Paid</Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={styles.paidMeta}>
@@ -593,7 +593,7 @@ export default function OrdersScreen() {
                     {'  ·  '}{inr(order.amount_paid || order.total_amount || 0)}
                   </Text>
                   {order.paid_at ? (
-                    <Text style={styles.paidDate}>చెల్లించిన తేదీ: {fmtPaidDate(order.paid_at)}</Text>
+                    <Text style={styles.paidDate}>ఇచ్చిన రోజు: {fmtPaidDate(order.paid_at)}</Text>
                   ) : null}
                 </View>
               </View>
@@ -617,13 +617,13 @@ export default function OrdersScreen() {
             /* Pending state — receipt is captured together with payment */
             <View style={styles.payStatusRow}>
               <View style={styles.pendingBadge}>
-                <Text style={styles.pendingBadgeText}>🔴 చెల్లించలేదు · Unpaid</Text>
+                <Text style={styles.pendingBadgeText}>🔴 పైసలివ్వలేదు · Unpaid</Text>
               </View>
               <TouchableOpacity
                 style={styles.markPaidBtn}
                 onPress={() => openPayModal(order)}
               >
-                <Text style={styles.markPaidBtnText}>💰 చెల్లించాం · Pay</Text>
+                <Text style={styles.markPaidBtnText}>💰 డబ్బివ్వండి · Pay</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -707,7 +707,7 @@ export default function OrdersScreen() {
               vendors.length === 0 ? (
                 <View style={styles.noVendorBox}>
                   <Text style={styles.noVendorText}>వెండర్లు లేరు · No vendors</Text>
-                  <Text style={styles.noVendorSub}>Admin ని సంప్రదించండి · Contact admin</Text>
+                  <Text style={styles.noVendorSub}>Admin ని అడగండి · Contact admin</Text>
                 </View>
               ) : (
                 <TouchableOpacity style={styles.selectBtn} onPress={() => setVendorSheetOpen(true)}>
@@ -801,8 +801,8 @@ export default function OrdersScreen() {
                 >
                   <Text style={styles.saveBtnText}>
                     {saving
-                      ? 'సేవ్ అవుతోంది...'
-                      : `✓ ఆర్డర్ సేవ్ చేయండి · Save Order  ${inr(grandTotal)}`}
+                      ? 'ఆగండి...'
+                      : `✓ ఆర్డర్ రాయండి · Save Order  ${inr(grandTotal)}`}
                   </Text>
                 </TouchableOpacity>
               </>
@@ -847,12 +847,12 @@ export default function OrdersScreen() {
         />
         <View style={styles.paySheet}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>💰 చెల్లింపు · Payment</Text>
+          <Text style={styles.sheetTitle}>💰 డబ్బు · Payment</Text>
           <Text style={styles.sheetVendor}>
             {payModal?.order?.vendor_name_en || payModal?.order?.vendor_name}
           </Text>
 
-          <Text style={styles.sheetLabel}>ఎంత చెల్లించారు? · Amount paid</Text>
+          <Text style={styles.sheetLabel}>ఎంత ఇచ్చారు? · Amount paid</Text>
           <View style={styles.amtRow}>
             <Text style={styles.amtRupee}>₹</Text>
             <TextInput
@@ -864,7 +864,7 @@ export default function OrdersScreen() {
             />
           </View>
 
-          <Text style={styles.sheetLabel}>చెల్లింపు పద్ధతి · Payment mode</Text>
+          <Text style={styles.sheetLabel}>డబ్బు ఎలా · Payment mode</Text>
           <View style={styles.modeRow}>
             {PAY_MODES.map((m) => (
               <TouchableOpacity
@@ -902,7 +902,7 @@ export default function OrdersScreen() {
             disabled={payingSave}
           >
             <Text style={styles.confirmPayBtnText}>
-              {payingSave ? 'నమోదు అవుతోంది...' : '✓ చెల్లింపు నమోదు · Confirm Payment'}
+              {payingSave ? 'ఆగండి...' : '✓ సరే · Confirm Payment'}
             </Text>
           </TouchableOpacity>
         </View>

@@ -192,7 +192,7 @@ function VendorsTab() {
       `${v.name_en || v.name} తొలగించాలా?`,
       'Soft delete — vendor will be hidden.',
       [
-        { text: 'రద్దు · Cancel', style: 'cancel' },
+        { text: 'వద్దు · Cancel', style: 'cancel' },
         {
           text: 'తొలగించు · Delete',
           style: 'destructive',
@@ -256,7 +256,7 @@ function VendorsTab() {
         <View style={styles.modalOverlay}>
           <ScrollView contentContainerStyle={styles.modalBox} keyboardShouldPersistTaps="handled">
             <Text style={styles.modalTitle}>
-              {editTarget ? 'వెండర్ సవరించండి · Edit' : 'వెండర్ చేర్చండి · Add'}
+              {editTarget ? 'వెండర్ మార్చండి · Edit' : 'వెండర్ చేర్చండి · Add'}
             </Text>
 
             {/* 1. English name */}
@@ -359,7 +359,7 @@ function VendorsTab() {
 
             <View style={styles.modalBtns}>
               <TouchableOpacity onPress={() => setModalOpen(false)} style={styles.cancelBtn}>
-                <Text>రద్దు</Text>
+                <Text>వద్దు</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleSave} style={styles.saveBtn} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>సేవ్</Text>}
@@ -491,7 +491,7 @@ function VegetablesTab() {
       <Modal visible={modalOpen} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <ScrollView contentContainerStyle={styles.modalBox} keyboardShouldPersistTaps="handled">
-            <Text style={styles.modalTitle}>{editTarget ? 'కూరగాయ సవరించండి' : 'కూరగాయ చేర్చండి'}</Text>
+            <Text style={styles.modalTitle}>{editTarget ? 'కూరగాయ మార్చండి' : 'కూరగాయ చేర్చండి'}</Text>
 
             <Text style={styles.fieldLabel}>English name *</Text>
             <TextInput
@@ -562,7 +562,7 @@ function VegetablesTab() {
 
             <View style={styles.modalBtns}>
               <TouchableOpacity onPress={() => setModalOpen(false)} style={styles.cancelBtn}>
-                <Text>రద్దు</Text>
+                <Text>వద్దు</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleSave} style={styles.saveBtn} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>సేవ్</Text>}
@@ -635,7 +635,7 @@ function SettingsTab({ navigation }) {
 
   const handleLogout = () => {
     Alert.alert('లాగౌట్ · Logout', 'PIN స్క్రీన్‌కి వెళ్ళాలా? · Go to PIN screen?', [
-      { text: 'రద్దు · Cancel', style: 'cancel' },
+      { text: 'వద్దు · Cancel', style: 'cancel' },
       {
         text: 'లాగౌట్ · Logout',
         style: 'destructive',

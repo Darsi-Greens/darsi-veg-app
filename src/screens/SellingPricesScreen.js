@@ -169,7 +169,7 @@ export default function SellingPricesScreen() {
     setLastSaved(now);
     setEditMode({});
     setSaving(false);
-    Voice.speak('ధరలు సేవ్ అయ్యాయి'); // "prices saved"
+    Voice.speak('ధరలు రాసాను'); // "prices saved"
 
     // 3. Sync to Firestore in background
     try {
@@ -208,7 +208,7 @@ export default function SellingPricesScreen() {
           <Text style={styles.englishName}>{item.name_en}</Text>
           {buyPrice ? (
             <Text style={styles.buyHint}>
-              కొనుగోలు ధర: ₹{buyPrice}{margin !== null ? `  ·  లాభం: ₹${margin.toFixed(0)}` : ''}
+              కొన్న రేటు: ₹{buyPrice}{margin !== null ? `  ·  లాభం: ₹${margin.toFixed(0)}` : ''}
             </Text>
           ) : null}
         </View>
@@ -217,13 +217,13 @@ export default function SellingPricesScreen() {
           // Edit mode — show TextInput
           <View style={styles.priceCol}>
             <View>
-              <Text style={styles.priceLabel}>అమ్మకపు ధర · Selling price per kg</Text>
+              <Text style={styles.priceLabel}>అమ్మే రేటు · Selling price per kg</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Text style={styles.rupee}>₹</Text>
                 <TextInput
                   style={[styles.input, margin !== null && margin < 0 && styles.inputLoss]}
                   keyboardType="decimal-pad"
-                  placeholder={buyPrice ? `కొనుగోలు ధర: ₹${buyPrice}` : '0'}
+                  placeholder={buyPrice ? `కొన్న రేటు: ₹${buyPrice}` : '0'}
                   placeholderTextColor="#aaa"
                   value={sellVal}
                   onChangeText={(v) => handleChange(item.id, v)}
@@ -266,14 +266,14 @@ export default function SellingPricesScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <AppHeader
           title="ధరలు"
-          subtitle={lastSaved ? `✓ సేవ్ అయింది ${lastSaved}` : "Today's Selling Prices"}
+          subtitle={lastSaved ? `✓ రాసాను ${lastSaved}` : "Today's Selling Prices"}
           showDate
         />
 
         {Object.keys(buyPrices).length === 0 && (
           <View style={styles.hintBanner}>
             <Text style={styles.hintBannerText}>
-              💡 ఆర్డర్లు అందిన తర్వాత కొనుగోలు ధర సూచన కనిపిస్తుంది
+              💡 సరుకు వచ్చాక కొన్న రేటు కనిపిస్తుంది
             </Text>
           </View>
         )}
@@ -292,7 +292,7 @@ export default function SellingPricesScreen() {
           disabled={saving}
         >
           <Text style={styles.saveBtnText}>
-            {saving ? 'సేవ్ అవుతోంది...' : '✓  ధరలు సేవ్ చేయండి / Save Prices'}
+            {saving ? 'ఆగండి...' : '✓  ధరలు రాయండి / Save Prices'}
           </Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>

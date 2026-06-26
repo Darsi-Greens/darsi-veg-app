@@ -320,7 +320,7 @@ export default function AnalyticsScreen() {
 
   const saveExpense = async () => {
     const amt = parseFloat(expAmount);
-    if (!amt || amt <= 0) { Alert.alert('మొత్తం చేర్చండి'); return; }
+    if (!amt || amt <= 0) { Alert.alert('ఎంత? రాయండి'); return; }
     setSavingExp(true);
 
     const expData = {
@@ -340,7 +340,7 @@ export default function AnalyticsScreen() {
     setExpAmount('');
     setExpNote('');
     setSavingExp(false);
-    Voice.speak(`ఖర్చు ${Voice.money(amt)} నమోదు అయింది`);
+    Voice.speak(`ఖర్చు ${Voice.money(amt)} రాసాను`);
 
     // 2. Sync to Firestore in background (idempotent — no duplicate on retry)
     try {
@@ -360,9 +360,9 @@ export default function AnalyticsScreen() {
         credit_paid_at: serverTimestamp(),
       });
       setCreditSales((p) => p.filter((s) => s.id !== sale.id));
-      Voice.speak(`బాకీ అందింది, ${Voice.money(sale.total_amount || 0)}`);
+      Voice.speak(`బాకీ తీరింది, ${Voice.money(sale.total_amount || 0)}`);
     } catch {
-      Alert.alert('లోపం', 'అప్‌డేట్ విఫలమైంది.');
+      Alert.alert('లోపం', 'కాలేదు, మళ్ళీ చూడండి.');
     } finally {
       setMarkingPaid(null);
     }
@@ -373,7 +373,7 @@ export default function AnalyticsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={s.container}>
-        <AppHeader title="నివేదిక" subtitle="Analytics" />
+        <AppHeader title="లెక్కలు" subtitle="Analytics" />
         <ActivityIndicator style={{ marginTop: 48 }} size="large" color="#2d6a4f" />
       </SafeAreaView>
     );
@@ -385,14 +385,14 @@ export default function AnalyticsScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <AppHeader title="నివేదిక" subtitle="Analytics" />
+      <AppHeader title="లెక్కలు" subtitle="Analytics" />
 
       {/* Tab bar */}
       <View style={s.tabs}>
         {[
           { key: 'today',  label: 'ఈరోజు' },
           { key: 'month',  label: 'నెల' },
-          { key: 'credit', label: `క్రెడిట్${creditSales.length > 0 ? ` (${creditSales.length})` : ''}` },
+          { key: 'credit', label: `అప్పు${creditSales.length > 0 ? ` (${creditSales.length})` : ''}` },
           { key: 'dues',   label: `వెండర్ బాకీ${totalDues > 0 ? ' 🔴' : ''}` },
         ].map((t) => (
           <TouchableOpacity
@@ -400,7 +400,7 @@ export default function AnalyticsScreen() {
             style={[s.tab, activeTab === t.key && s.tabActive]}
             onPress={() => {
               setActiveTab(t.key);
-              Voice.speak({ today: 'ఈరోజు', month: 'నెల', credit: 'క్రెడిట్', dues: 'వెండర్ బాకీ' }[t.key] || '');
+              Voice.speak({ today: 'ఈరోజు', month: 'నెల', credit: 'అప్పు', dues: 'వెండర్ బాకీ' }[t.key] || '');
             }}
           >
             <Text style={[s.tabText, activeTab === t.key && s.tabTextActive]}>{t.label}</Text>
@@ -440,17 +440,17 @@ export default function AnalyticsScreen() {
                 <ProfitRow label="వేస్ట్"            val={td?.wasteCost}     color="#999" />
               </View>
               <Text style={s.profitNote}>
-                నేటి కొనుగోలు · Bought today: {inr(td?.totalBuyCost ?? 0)}  ·  మిగిలిన సరుకు రేపటికి
+                ఈరోజు కొన్నది · Bought today: {inr(td?.totalBuyCost ?? 0)}  ·  మిగిలిన సరుకు రేపటికి
               </Text>
             </View>
 
             {/* Payment breakdown */}
             <View style={s.card}>
-              <Text style={s.cardLabel}>చెల్లింపు / Payment Mode</Text>
+              <Text style={s.cardLabel}>డబ్బు ఎలా / Payment Mode</Text>
               <View style={s.payRow}>
-                <PayCell label="నగదు"  val={td?.payBreak?.cash}   color="#2d6a4f" />
+                <PayCell label="క్యాష్"  val={td?.payBreak?.cash}   color="#2d6a4f" />
                 <PayCell label="UPI"   val={td?.payBreak?.upi}    color="#5b8dee" />
-                <PayCell label="క్రెడిట్" val={td?.payBreak?.credit} color="#e74c3c" />
+                <PayCell label="అప్పు" val={td?.payBreak?.credit} color="#e74c3c" />
               </View>
               <Text style={s.txnCount}>{td?.totalTxns ?? 0} transactions</Text>
             </View>
@@ -464,7 +464,7 @@ export default function AnalyticsScreen() {
                 </TouchableOpacity>
               </View>
               {expenses.length === 0 ? (
-                <Text style={s.emptyHint}>ఇంకా ఖర్చులు నమోదు చేయలేదు</Text>
+                <Text style={s.emptyHint}>ఇంకా ఖర్చులు రాయలేదు</Text>
               ) : (
                 expenses.map((e) => (
                   <View key={e.id} style={s.expRow}>
@@ -564,11 +564,11 @@ export default function AnalyticsScreen() {
         {activeTab === 'credit' && (
           <>
             <View style={[s.card, { backgroundColor: creditTotal > 0 ? '#fff5f5' : '#f0fff4' }]}>
-              <Text style={s.cardLabel}>మొత్తం బాకీ / Total Udhari</Text>
+              <Text style={s.cardLabel}>మొత్తం అప్పు / Total Udhari</Text>
               <Text style={[s.bigNum, { color: creditTotal > 0 ? '#e74c3c' : '#2d6a4f' }]}>
                 {inr(creditTotal)}
               </Text>
-              <Text style={{ fontSize: 13, color: '#888', marginTop: 4 }}>{creditSales.length} అవుట్‌స్టాండింగ్ సేల్స్</Text>
+              <Text style={{ fontSize: 13, color: '#888', marginTop: 4 }}>{creditSales.length} అప్పులు ఉన్నాయి</Text>
             </View>
 
             {creditSales.length === 0 ? (
@@ -609,7 +609,7 @@ export default function AnalyticsScreen() {
           <>
             {/* Total outstanding card */}
             <View style={[s.card, { backgroundColor: totalDues > 0 ? '#fff5f5' : '#f0fff4' }]}>
-              <Text style={s.cardLabel}>చెల్లించాల్సిన మొత్తం · Total Outstanding</Text>
+              <Text style={s.cardLabel}>ఇవ్వాల్సిన డబ్బు · Total Outstanding</Text>
               <Text style={[s.bigNum, { color: totalDues > 0 ? '#e74c3c' : '#2d6a4f' }]}>
                 {inr(totalDues)}
               </Text>
@@ -654,7 +654,7 @@ export default function AnalyticsScreen() {
       <Modal visible={expenseModal} transparent animationType="slide" onRequestClose={() => setExpenseModal(false)}>
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
-            <Text style={s.modalTitle}>+ ఖర్చు నమోదు</Text>
+            <Text style={s.modalTitle}>+ ఖర్చు రాయండి</Text>
             <Text style={s.modalLabel}>రకం / Type</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -674,7 +674,7 @@ export default function AnalyticsScreen() {
               value={expAmount}
               onChangeText={(v) => /^\d*\.?\d*$/.test(v) && setExpAmount(v)}
             />
-            <Text style={s.modalLabel}>గమనిక (ఐచ్ఛికం)</Text>
+            <Text style={s.modalLabel}>గమనిక (కావాలంటే)</Text>
             <TextInput
               style={[s.modalInput, { fontSize: 14 }]}
               placeholder="e.g. 2 లీటర్ పెట్రోల్"
@@ -687,7 +687,7 @@ export default function AnalyticsScreen() {
                 <Text style={s.modalCancelText}>రద్దు</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.modalConfirm, savingExp && { backgroundColor: '#74c69d' }]} onPress={saveExpense} disabled={savingExp}>
-                <Text style={s.modalConfirmText}>{savingExp ? 'నమోదు...' : '✓ సేవ్'}</Text>
+                <Text style={s.modalConfirmText}>{savingExp ? 'ఆగండి...' : '✓ సరే'}</Text>
               </TouchableOpacity>
             </View>
           </View>

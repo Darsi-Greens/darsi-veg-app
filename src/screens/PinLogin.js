@@ -55,7 +55,7 @@ export default function PinLogin({ navigation }) {
 
   const fail = () => {
     shake();
-    setError('తప్పు PIN · Wrong PIN');
+    setError('తప్పు నంబర్ · Wrong PIN');
     setPin('');
     setTimeout(() => setError(''), 2000);
   };
@@ -119,7 +119,7 @@ export default function PinLogin({ navigation }) {
 
       {error
         ? <Text style={styles.errorText}>{error}</Text>
-        : <Text style={styles.hint}>పిన్ నమోదు చేయండి · Enter PIN</Text>}
+        : <Text style={styles.hint}>నంబర్ కొట్టండి · Enter PIN</Text>}
 
       <View style={styles.dialpad}>
         {DIALPAD.map((row, ri) => (
