@@ -255,18 +255,26 @@ export default function OrdersScreen() {
   };
 
   const grabPaymentPhoto = async (source) => {
-    const perm = source === 'camera'
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (perm.status !== 'granted') {
-      Alert.alert('అనుమతి అవసరం · Permission needed', 'Settings లో అనుమతి ఇవ్వండి.');
-      return;
+    try {
+      const perm = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.status !== 'granted') {
+        Voice.speak('అనుమతి కావాలి');
+        Alert.alert('అనుమతి కావాలి · Permission needed', 'ఫోన్ Settings లో కెమెరా/ఫోటో అనుమతి ఇవ్వండి.');
+        return;
+      }
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+      if (result.canceled) return; // user backed out — no message needed
+      const uri = result.assets?.[0]?.uri;
+      if (!uri) { Alert.alert('ఫోటో రాలేదు · No photo', 'మళ్ళీ ప్రయత్నించండి.'); return; }
+      setPayReceiptUri(uri);
+      Voice.speak('ఫోటో చేర్చాం'); // "photo added"
+    } catch (e) {
+      Alert.alert('ఫోటో లోపం · Photo error', String(e?.message || e));
     }
-    const result = source === 'camera'
-      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
-    if (result.canceled || !result.assets?.[0]?.uri) return;
-    setPayReceiptUri(result.assets[0].uri);
   };
 
   const handleMarkPaid = async () => {
@@ -365,23 +373,28 @@ export default function OrdersScreen() {
   const pickReceipt = async (order, source) => {
     const orderId = order.id || order._localId;
 
-    let permResult;
-    if (source === 'camera') {
-      permResult = await ImagePicker.requestCameraPermissionsAsync();
-    } else {
-      permResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    }
-    if (permResult.status !== 'granted') {
-      Alert.alert('అనుమతి అవసరం · Permission needed', 'Settings లో అనుమతి ఇవ్వండి.');
+    let result;
+    try {
+      const permResult = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permResult.status !== 'granted') {
+        Voice.speak('అనుమతి కావాలి');
+        Alert.alert('అనుమతి కావాలి · Permission needed', 'ఫోన్ Settings లో కెమెరా/ఫోటో అనుమతి ఇవ్వండి.');
+        return;
+      }
+      result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+    } catch (e) {
+      Alert.alert('ఫోటో లోపం · Photo error', String(e?.message || e));
       return;
     }
 
-    const result = source === 'camera'
-      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
-
-    if (result.canceled || !result.assets?.[0]?.uri) return;
-    const uri = result.assets[0].uri;
+    if (result.canceled) return; // user backed out
+    const uri = result.assets?.[0]?.uri;
+    if (!uri) { Alert.alert('ఫోటో రాలేదు · No photo', 'మళ్ళీ ప్రయత్నించండి.'); return; }
+    Voice.speak('ఫోటో చేర్చాం');
 
     // Show local preview immediately
     setOrders((prev) => prev.map((o) => {
