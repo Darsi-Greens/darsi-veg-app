@@ -68,6 +68,13 @@ export default function StockScreen() {
       setPriceById(pmap);
     }
 
+    // Vegetable master = authoritative source for unit/name/emoji. Transactions
+    // may carry a stale unit (e.g. an old order recorded in kg), so we override
+    // with the master so Stock matches Sales (e.g. Bottle Gourd = పీస్, not కేజీ).
+    const cachedVegs = (await LocalDB.get('cache_vegetables')) || [];
+    const masterById = {};
+    cachedVegs.forEach((v) => { masterById[v.id] = v; });
+
     try {
       const [ordSnap, salesSnap, stockSnap] = await Promise.all([
         getDocs(query(collection(db, 'vendor_orders'), where('order_date', '==', today), where('status', '==', 'received'))),
@@ -123,6 +130,13 @@ export default function StockScreen() {
 
       const result = Array.from(allIds).map((id) => {
         const meta      = vegMeta[id] || { name_te: id, name_en: id, emoji: '🥬', unit: 'kg' };
+        const m         = masterById[id];
+        if (m) { // master wins for unit/name/emoji
+          if (m.unit)    meta.unit    = m.unit;
+          if (m.name_te) meta.name_te = m.name_te;
+          if (m.name_en) meta.name_en = m.name_en;
+          if (m.emoji)   meta.emoji   = m.emoji;
+        }
         const recvQty   = received[id]   || 0;
         const soldQty   = sold[id]       || 0;
         const wasteQty  = wasted[id]     || 0;
