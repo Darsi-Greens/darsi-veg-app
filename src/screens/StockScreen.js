@@ -16,6 +16,7 @@ import { Voice } from '../services/Speak';
 import VegImage from '../components/VegImage';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
+import { toBaseQty } from '../utils/units';
 
 const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
 
@@ -106,7 +107,8 @@ export default function StockScreen() {
         const id   = data.veg_id;
         if (!id) return;
         if (!vegMeta[id]) vegMeta[id] = { name_te: data.veg_name_te, name_en: data.veg_name_en, emoji: data.veg_emoji ?? '🥬', unit: data.unit ?? 'kg' };
-        sold[id] = (sold[id] || 0) + (data.quantity || 0);
+        // Normalize grams→kg so a 500 g sale subtracts 0.5 kg, not 500.
+        sold[id] = (sold[id] || 0) + toBaseQty(data.quantity, data.unit);
       });
 
       // From stock_log

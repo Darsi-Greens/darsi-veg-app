@@ -14,6 +14,7 @@ import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import { newId } from '../services/ids';
 import { inr } from '../utils/money';
+import { toBaseQty } from '../utils/units';
 import { Voice } from '../services/Speak';
 import VegImage from '../components/VegImage';
 import { tapBuzz } from '../services/haptics';
@@ -116,7 +117,8 @@ export default function AnalyticsScreen() {
         const id = s.veg_id || s.veg_name_en;
         if (id) {
           vegMap[id] = vegMap[id] || { name_te: s.veg_name_te, name_en: s.veg_name_en, emoji: s.veg_emoji ?? '🥬', qty: 0, revenue: 0, sell_price: s.sell_price || 0, buy_price: 0 };
-          vegMap[id].qty     += s.quantity || 0;
+          // Base-unit qty (grams→kg) so COGS = buy_price × qty stays in kg.
+          vegMap[id].qty     += toBaseQty(s.quantity, s.unit);
           vegMap[id].revenue += s.total_amount || 0;
         }
       });
@@ -197,7 +199,7 @@ export default function AnalyticsScreen() {
         const id = s.veg_id || s.veg_name_en;
         if (id) {
           vegQtyMap[id] = vegQtyMap[id] || { name_te: s.veg_name_te, name_en: s.veg_name_en, emoji: s.veg_emoji ?? '🥬', qty: 0 };
-          vegQtyMap[id].qty += s.quantity || 0;
+          vegQtyMap[id].qty += toBaseQty(s.quantity, s.unit);
         }
       });
 

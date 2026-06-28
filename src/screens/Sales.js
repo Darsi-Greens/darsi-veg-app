@@ -29,6 +29,7 @@ import { inr } from '../utils/money';
 import { Voice } from '../services/Speak';
 import VegImage from '../components/VegImage';
 import { tapBuzz } from '../services/haptics';
+import { toBaseQty } from '../utils/units';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_SIZE = (SCREEN_WIDTH - 48) / 2;
@@ -49,8 +50,7 @@ const UNIT_TABS = {
 // Stepper increment per unit
 const QTY_STEP = { kg: 0.5, gm: 100, pcs: 1 };
 
-// Convert user qty in selected unit → base unit qty (for total = baseQty × pricePerKg)
-const toBaseQty = (qty, unit) => (unit === 'gm' ? qty / 1000 : qty);
+// toBaseQty (grams→kg normalization) is shared via ../utils/units — see top imports.
 
 // ── Payment modes ───────────────────────────────────────────────────────────────
 const PAYMENT_MODES = [
