@@ -207,6 +207,7 @@ export default function OrdersScreen() {
   const openReceive = (order) => {
     const rows = (order.items || []).map((it) => ({
       weighed:  '',
+      marked:   it.expected_kg ? String(it.expected_kg) : '', // prefill from expected kg
       price:    it.expected_price ? String(it.expected_price) : '',
       quantity: it.order_mode === 'unit' ? String(it.quantity || '') : '',
     }));
@@ -252,12 +253,16 @@ export default function OrdersScreen() {
     const items = (order.items || []).map((it, idx) => {
       const r = recvItems[idx] || {};
       const p = parseFloat(r.price) || 0;
+      const priceGap = it.expected_price ? parseFloat((p - it.expected_price).toFixed(2)) : null;
       if (it.order_mode === 'bag') {
         const w = parseFloat(r.weighed) || 0;
-        return { ...it, weighed_kg: w, buy_price: p, quantity: w, line_total: parseFloat((w * p).toFixed(2)) };
+        const mk = parseFloat(r.marked) || 0;
+        const weightGap = mk > 0 ? parseFloat((w - mk).toFixed(3)) : null; // negative = short
+        return { ...it, weighed_kg: w, marked_kg: mk, buy_price: p, quantity: w,
+          weight_gap: weightGap, price_gap: priceGap, line_total: parseFloat((w * p).toFixed(2)) };
       }
       const q = parseFloat(r.quantity) || it.quantity || 0;
-      return { ...it, buy_price: p, quantity: q, line_total: parseFloat((q * p).toFixed(2)) };
+      return { ...it, buy_price: p, quantity: q, price_gap: priceGap, line_total: parseFloat((q * p).toFixed(2)) };
     });
     const total = parseFloat(items.reduce((s, it) => s + (it.line_total || 0), 0).toFixed(2));
     const receivedAt = new Date().toISOString();
@@ -614,6 +619,12 @@ export default function OrdersScreen() {
     const receiptUri   = order.receipt_url || order.receipt_local_uri;
     const isUploading  = order.receipt_uploading || uploadingId === orderId;
 
+    // Weigh-check: kg the market marked vs what it actually weighed (Phase B)
+    const shortKg = isReceived ? (order.items || []).reduce((s, it) =>
+      s + (it.marked_kg > 0 && it.weighed_kg != null ? Math.max(0, it.marked_kg - it.weighed_kg) : 0), 0) : 0;
+    const lostRs = isReceived ? (order.items || []).reduce((s, it) =>
+      s + (it.marked_kg > 0 && it.weighed_kg != null ? Math.max(0, it.marked_kg - it.weighed_kg) * (it.buy_price || 0) : 0), 0) : 0;
+
     return (
       <View key={orderId} style={[styles.orderCard, isReceived && styles.orderCardReceived]}>
 
@@ -671,6 +682,13 @@ export default function OrdersScreen() {
             ? <Text style={styles.orderTotal}>మొత్తం: {inr(order.total_amount || 0)}</Text>
             : (order.expected_total ? <Text style={[styles.orderTotal, { color: '#8a978d' }]}>అంచనా: {inr(order.expected_total)}</Text> : null)}
         </View>
+
+        {/* Weigh-check warning (Phase B) */}
+        {isReceived && shortKg > 0 && (
+          <View style={styles.gapBox}>
+            <Text style={styles.gapText}>⚖️ తూకం {shortKg.toFixed(1)} కేజీ తక్కువ · {inr(lostRs)} నష్టం</Text>
+          </View>
+        )}
 
         {/* ── Payment section (only after the bill/goods arrive) ── */}
         {isReceived && (<>
@@ -977,8 +995,9 @@ export default function OrdersScreen() {
                   <Text style={styles.recvVeg}>{it.veg_name_te} <Text style={styles.recvOrdered}>· ఆర్డర్: {ordered}</Text></Text>
                   <View style={styles.recvInputs}>
                     {it.order_mode === 'bag' ? (
+                      <>
                       <View style={styles.recvField}>
-                        <Text style={styles.recvLabel}>తూకం (కేజీ) · Weighed</Text>
+                        <Text style={styles.recvLabel}>తూకం · Weighed</Text>
                         <TextInput
                           style={styles.recvInput} keyboardType="numeric" placeholder="0" placeholderTextColor="#bbb"
                           value={r.weighed}
@@ -987,6 +1006,16 @@ export default function OrdersScreen() {
                           onBlur={() => { if (r.weighed) Voice.speak(`${it.veg_name_te} ${r.weighed} కేజీ`); }}
                         />
                       </View>
+                      <View style={styles.recvField}>
+                        <Text style={styles.recvLabel}>బస్తా మీద · Marked</Text>
+                        <TextInput
+                          style={styles.recvInput} keyboardType="numeric" placeholder="0" placeholderTextColor="#bbb"
+                          value={r.marked}
+                          onFocus={() => Voice.speak(`${it.veg_name_te} బస్తా మీద కేజీ ఎంటర్ చేయండి`)}
+                          onChangeText={(v) => { const c = v.replace(',', '.'); if (/^\d*\.?\d*$/.test(c)) updateRecv(idx, 'marked', c); }}
+                        />
+                      </View>
+                      </>
                     ) : (
                       <View style={styles.recvField}>
                         <Text style={styles.recvLabel}>ఎంత ({u}) · Qty</Text>
@@ -1206,8 +1235,10 @@ const styles = StyleSheet.create({
   recvRow:      { borderBottomWidth: 1, borderBottomColor: '#f0f0f0', paddingVertical: 10 },
   recvVeg:      { fontSize: 16, fontWeight: '700', color: '#1a472a', marginBottom: 8 },
   recvOrdered:  { fontSize: 12, fontWeight: '500', color: '#8a978d' },
-  recvInputs:   { flexDirection: 'row', gap: 12 },
-  recvField:    { flex: 1 },
+  recvInputs:   { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  recvField:    { flexGrow: 1, flexBasis: 90, minWidth: 90 },
+  gapBox:       { backgroundColor: '#fff3e0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginTop: 6, alignSelf: 'flex-start' },
+  gapText:      { fontSize: 12, fontWeight: '700', color: '#e65100' },
   recvLabel:    { fontSize: 11, color: '#666', fontWeight: '600', marginBottom: 4 },
   recvInput:    { borderWidth: 1.5, borderColor: '#b7e4c7', borderRadius: 8, backgroundColor: '#f8fff8', paddingHorizontal: 10, height: 44, fontSize: 16, fontWeight: '700', color: '#1a472a', textAlign: 'center' },
   receiptBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, gap: 6 },

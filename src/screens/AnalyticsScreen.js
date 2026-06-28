@@ -116,6 +116,7 @@ export default function AnalyticsScreen() {
       // not the whole purchase, so a big morning order doesn't make the day look
       // unprofitable. Leftover stock keeps its value and carries to tomorrow.
       let totalBuyCost = 0;
+      let weightShortKg = 0, weightLostRs = 0; // weigh-check: marked vs weighed (Phase B)
       const buyPriceMap = {}; // veg_id → buy_price (covers wasted-but-unsold veg too)
       ordSnap.docs.forEach((d) => {
         const o = d.data();
@@ -125,6 +126,11 @@ export default function AnalyticsScreen() {
           if (id) {
             buyPriceMap[id] = item.buy_price || 0;
             if (vegMap[id]) vegMap[id].buy_price = item.buy_price || 0;
+          }
+          if (item.marked_kg > 0 && item.weighed_kg != null) {
+            const short = Math.max(0, item.marked_kg - item.weighed_kg);
+            weightShortKg += short;
+            weightLostRs += short * (item.buy_price || 0);
           }
         });
       });
@@ -154,7 +160,7 @@ export default function AnalyticsScreen() {
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 5);
 
-      setTodayData({ totalSales, totalTxns, totalBuyCost, cogs, totalExpenses, wasteCost, grossProfit, netProfit, payBreak, topVegs, vegMap });
+      setTodayData({ totalSales, totalTxns, totalBuyCost, cogs, totalExpenses, wasteCost, grossProfit, netProfit, payBreak, topVegs, vegMap, weightShortKg, weightLostRs });
     } catch (e) {
       console.warn('Analytics today load error:', e);
     }
@@ -443,6 +449,17 @@ export default function AnalyticsScreen() {
                 ఈరోజు కొన్నది · Bought today: {inr(td?.totalBuyCost ?? 0)}  ·  మిగిలిన సరుకు రేపటికి
               </Text>
             </View>
+
+            {/* Weigh-check loss (Phase B) — money lost to short weight */}
+            {(td?.weightLostRs ?? 0) > 0 && (
+              <View style={[s.card, { backgroundColor: '#fff3e0' }]}>
+                <Text style={s.cardLabel}>⚖️ తూకం నష్టం / Weight Loss</Text>
+                <Text style={[s.bigNum, { color: '#e65100' }]}>{inr(td.weightLostRs)}</Text>
+                <Text style={{ fontSize: 13, color: '#8a6d3b' }}>
+                  మార్కెట్ {td.weightShortKg.toFixed(1)} కేజీ తక్కువ తూకం వేసింది · {td.weightShortKg.toFixed(1)} kg short on the bags today
+                </Text>
+              </View>
+            )}
 
             {/* Payment breakdown */}
             <View style={s.card}>
