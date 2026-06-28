@@ -3,6 +3,7 @@ import {
   Modal, View, Text, TextInput, FlatList, TouchableOpacity,
   StyleSheet, Platform,
 } from 'react-native';
+import { Voice } from '../services/Speak';
 
 const UNIT_TE = { kg: 'కేజీ', piece: 'పీస్', bundle: 'కట్ట', dozen: 'డజన్' };
 
@@ -32,6 +33,9 @@ export default function SelectionSheet({
   const filtered = filterItems(items, search);
 
   const handleSelect = (item) => {
+    // Speak the chosen item (vendor or vegetable)
+    if (type === 'vegetable') Voice.speak(item.name_te || item.name_en || '');
+    else Voice.speak(`వెండర్, ${item.name || item.name_en || ''}`);
     onSelect(item);
     setSearch('');
     onClose();

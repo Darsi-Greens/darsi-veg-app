@@ -462,7 +462,6 @@ export default function OrdersScreen() {
       return next;
     });
     setVegSheetOpenIdx(null);
-    Voice.speak(veg.name_te); // speak the chosen vegetable
   };
 
   const grandTotal = formItems.reduce((s, i) => s + i.lineTotal, 0);
@@ -723,7 +722,7 @@ export default function OrdersScreen() {
                   <Text style={styles.noVendorSub}>Admin ని అడగండి · Contact admin</Text>
                 </View>
               ) : (
-                <TouchableOpacity style={styles.selectBtn} onPress={() => setVendorSheetOpen(true)}>
+                <TouchableOpacity style={styles.selectBtn} onPress={() => { setVendorSheetOpen(true); Voice.speak('వెండర్ ఎంచుకోండి'); }}>
                   <Text style={styles.selectBtnText}>🏪 వెండర్ ఎంచుకోండి · Select Vendor</Text>
                 </TouchableOpacity>
               )
@@ -746,7 +745,7 @@ export default function OrdersScreen() {
                         <Text style={styles.vegChipChange}>✏️</Text>
                       </TouchableOpacity>
                     ) : (
-                      <TouchableOpacity style={styles.vegPickBtn} onPress={() => setVegSheetOpenIdx(idx)}>
+                      <TouchableOpacity style={styles.vegPickBtn} onPress={() => { setVegSheetOpenIdx(idx); Voice.speak('కూరగాయ ఎంచుకోండి'); }}>
                         <Text style={styles.vegPickBtnText}>🥬 కూరగాయ ఎంచుకోండి · Select Vegetable</Text>
                       </TouchableOpacity>
                     )}
@@ -769,6 +768,7 @@ export default function OrdersScreen() {
                             placeholder="0"
                             placeholderTextColor="#bbb"
                             value={item.price}
+                            onFocus={() => { if (item.veg) Voice.speak(`${item.veg.name_te} కొనుగోలు ధర`); }}
                             onChangeText={(v) => {
                               const clean = v.replace(',', '.');
                               if (/^\d*\.?\d*$/.test(clean)) updateField(idx, 'price', clean);
@@ -830,7 +830,7 @@ export default function OrdersScreen() {
         onClose={() => setVendorSheetOpen(false)}
         title="వెండర్ ఎంచుకోండి · Select Vendor"
         items={vendors}
-        onSelect={(v) => { setSelectedVendor(v); setVendorSheetOpen(false); Voice.speak(`వెండర్, ${v.name}`); }}
+        onSelect={(v) => { setSelectedVendor(v); setVendorSheetOpen(false); }}
         selectedId={selectedVendor?.id}
         type="vendor"
       />

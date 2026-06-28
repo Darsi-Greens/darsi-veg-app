@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, StyleSheet,
 } from 'react-native';
+import { Voice } from '../services/Speak';
 
 const QUICK_QTYS = [1, 2, 5, 10, 20, 50];
 
@@ -11,11 +12,12 @@ export default function QuantityPicker({ value, onChange, unit = 'కేజీ',
 
   const numVal = parseFloat(value) || 0;
 
-  const handleQuick = (q) => onChange(String(q));
+  const handleQuick = (q) => { onChange(String(q)); Voice.speak(`${q} ${unit}`); };
 
   const handleStep = (dir) => {
     const next = Math.max(0, parseFloat((numVal + dir * step).toFixed(2)));
     onChange(String(next));
+    Voice.speak(`${next} ${unit}`);
   };
 
   const finishTyping = () => {
