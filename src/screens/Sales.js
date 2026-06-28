@@ -284,13 +284,16 @@ export default function Sales() {
   const switchUnit = (unit) => {
     setActiveUnit(unit);
     setQty(String(QTY_STEP[unit] ?? 1));
+    Voice.speak(UNIT_TE[unit]);
   };
 
   const stepQty = (dir) => {
     const step = QTY_STEP[activeUnit] ?? 1;
     const next = Math.max(step, (parseFloat(qty) || 0) + dir * step);
     // For gm keep integer; for kg allow one decimal
-    setQty(activeUnit === 'kg' ? String(next) : String(Math.round(next)));
+    const val = activeUnit === 'kg' ? String(next) : String(Math.round(next));
+    setQty(val);
+    Voice.speak(`${val} ${UNIT_TE[activeUnit]}`);
   };
 
   const handleConfirm = async () => {
@@ -486,7 +489,7 @@ export default function Sales() {
                   <TouchableOpacity
                     key={m.key}
                     style={[styles.payBtn, payMode === m.key && styles.payBtnActive]}
-                    onPress={() => setPayMode(m.key)}
+                    onPress={() => { setPayMode(m.key); Voice.speak(m.te); }}
                   >
                     <Text style={[styles.payBtnTe, payMode === m.key && styles.payBtnActiveText]}>
                       {m.te}
