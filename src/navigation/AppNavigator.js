@@ -76,7 +76,7 @@ export default function AppNavigator({ navigation }) {
               shadowOffset:    { width: 0, height: -2 },
             },
             tabBarLabelStyle: {
-              fontSize:   11,
+              fontSize: 13,
               fontWeight: '700',
               marginTop:  0,
             },

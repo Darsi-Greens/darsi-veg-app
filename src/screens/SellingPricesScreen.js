@@ -310,18 +310,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
   },
   headerTitle: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
-  headerSub:   { fontSize: 12, color: '#a8d5b5', marginTop: 2 },
-  savedAt:     { fontSize: 12, color: '#9be7b4', marginTop: 5, fontWeight: '600' },
+  headerSub:   { fontSize: 13, color: '#a8d5b5', marginTop: 2 },
+  savedAt:     { fontSize: 13, color: '#9be7b4', marginTop: 5, fontWeight: '600' },
 
   datePill:     { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 13, paddingVertical: 7, alignItems: 'center', minWidth: 92 },
-  datePillDay:  { fontSize: 11, color: '#2d6a4f', fontWeight: '700' },
+  datePillDay:  { fontSize: 13, color: '#2d6a4f', fontWeight: '700' },
   datePillDate: { fontSize: 14, color: '#1a472a', fontWeight: '800', marginTop: 1 },
 
   hintBanner: {
     backgroundColor: '#fff3cd', paddingHorizontal: 16, paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: '#ffc107',
   },
-  hintBannerText: { fontSize: 12, color: '#856404' },
+  hintBannerText: { fontSize: 13, color: '#856404' },
 
   list: { padding: 12, gap: 8, paddingBottom: 16 },
 
@@ -335,12 +335,12 @@ const styles = StyleSheet.create({
   emoji:       { fontSize: 26 },
   nameCol:     { flex: 1 },
   teluguName:  { fontSize: 16, fontWeight: '600', color: '#1a472a' },
-  englishName: { fontSize: 12, color: '#666', marginTop: 1 },
-  buyHint:     { fontSize: 11, color: '#2d6a4f', marginTop: 3, fontWeight: '500' },
+  englishName: { fontSize: 13, color: '#666', marginTop: 1 },
+  buyHint:     { fontSize: 13, color: '#2d6a4f', marginTop: 3, fontWeight: '500' },
 
   // Edit mode — TextInput
   priceCol:   { alignItems: 'flex-end' },
-  priceLabel: { fontSize: 10, color: '#888', marginBottom: 4, textAlign: 'right' },
+  priceLabel: { fontSize: 13, color: '#888', marginBottom: 4, textAlign: 'right' },
   rupee:      { fontSize: 18, color: '#2d6a4f', fontWeight: '600' },
   input: {
     width: 72, height: 44,
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fff8', textAlign: 'right', fontWeight: '600',
   },
   inputLoss: { borderColor: '#e74c3c', color: '#e74c3c' },
-  unit:      { fontSize: 12, color: '#555' },
+  unit:      { fontSize: 13, color: '#555' },
 
   // View mode — price text + pencil
   priceViewCol:  { alignItems: 'flex-end', gap: 6 },

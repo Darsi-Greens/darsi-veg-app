@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   dotFilled:  { backgroundColor: '#fff' },
   hint:       { color: '#a8d5b5', fontSize: 14, marginBottom: 32 },
   errorText:  { color: '#ff6b6b', fontSize: 15, fontWeight: '600', marginBottom: 32 },
-  devHint:    { color: '#74c69d', fontSize: 12, marginTop: 28, opacity: 0.8 },
+  devHint:    { color: '#74c69d', fontSize: 13, marginTop: 28, opacity: 0.8 },
   dialpad:    { gap: 12 },
   row:        { flexDirection: 'row', gap: 12 },
   key:        { width: 72, height: 72, borderRadius: 36, backgroundColor: '#2d6a4f', alignItems: 'center', justifyContent: 'center' },

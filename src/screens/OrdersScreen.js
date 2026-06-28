@@ -1196,7 +1196,7 @@ const styles = StyleSheet.create({
   closeBtnText: { fontSize: 16, color: '#fff', fontWeight: '700' },
 
   testStrip:     { backgroundColor: '#eef3ee', paddingVertical: 6, alignItems: 'center' },
-  testStripText: { fontSize: 11, color: '#8a978d', fontWeight: '600' },
+  testStripText: { fontSize: 13, color: '#8a978d', fontWeight: '600' },
 
   header: {
     flexDirection: 'row', alignItems: 'center',
@@ -1204,7 +1204,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16, paddingHorizontal: 16, gap: 8,
   },
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
-  headerSub:   { fontSize: 12, color: '#a8d5b5', marginTop: 2 },
+  headerSub:   { fontSize: 13, color: '#a8d5b5', marginTop: 2 },
 
   scroll: { padding: 16, paddingBottom: 48 },
 
@@ -1217,9 +1217,9 @@ const styles = StyleSheet.create({
   orderCardReceived: { borderLeftColor: '#2d6a4f', backgroundColor: '#f8fff8' },
   orderHeader:  { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   orderVendor:  { fontSize: 17, fontWeight: '800', color: '#1a472a' },
-  orderMeta:    { fontSize: 12, color: '#8a978d', marginTop: 2 },
+  orderMeta:    { fontSize: 13, color: '#8a978d', marginTop: 2 },
   toggleWrap:   { alignItems: 'center', gap: 2 },
-  toggleLabel:  { fontSize: 11, color: '#888', fontWeight: '600' },
+  toggleLabel:  { fontSize: 13, color: '#888', fontWeight: '600' },
   toggleLabelOn: { color: '#2d6a4f' },
 
   itemRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', gap: 8 },
@@ -1235,11 +1235,11 @@ const styles = StyleSheet.create({
   paySection:    { gap: 8 },
   payStatusRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
   paidBadge:     { backgroundColor: '#d1e7dd', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  paidBadgeText: { color: '#0f5132', fontSize: 12, fontWeight: '700' },
-  paidMeta:      { fontSize: 12, color: '#2d6a4f', fontWeight: '600' },
-  paidDate:      { fontSize: 11, color: '#888', marginTop: 1 },
+  paidBadgeText: { color: '#0f5132', fontSize: 13, fontWeight: '700' },
+  paidMeta:      { fontSize: 13, color: '#2d6a4f', fontWeight: '600' },
+  paidDate:      { fontSize: 13, color: '#888', marginTop: 1 },
   pendingBadge:     { backgroundColor: '#fff3cd', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  pendingBadgeText: { color: '#856404', fontSize: 12, fontWeight: '700' },
+  pendingBadgeText: { color: '#856404', fontSize: 13, fontWeight: '700' },
   markPaidBtn:      { marginLeft: 'auto', backgroundColor: '#2d6a4f', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
   markPaidBtnText:  { color: '#fff', fontSize: 13, fontWeight: '700' },
   receiveBtn:      { backgroundColor: '#2d6a4f', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
@@ -1252,17 +1252,17 @@ const styles = StyleSheet.create({
   modeChipText:  { fontSize: 15, fontWeight: '700', color: '#2d6a4f' },
   modeChipTextOn:{ color: '#fff' },
   optInput:      { borderWidth: 1.5, borderColor: '#b7e4c7', borderRadius: 8, backgroundColor: '#f8fff8', paddingHorizontal: 12, height: 44, fontSize: 16, fontWeight: '600', color: '#1a1a1a' },
-  billNote:      { fontSize: 12, color: '#8a978d', fontStyle: 'italic', marginBottom: 12 },
+  billNote:      { fontSize: 13, color: '#8a978d', fontStyle: 'italic', marginBottom: 12 },
 
   // Receive sheet
   recvRow:      { borderBottomWidth: 1, borderBottomColor: '#f0f0f0', paddingVertical: 10 },
   recvVeg:      { fontSize: 16, fontWeight: '700', color: '#1a472a', marginBottom: 8 },
-  recvOrdered:  { fontSize: 12, fontWeight: '500', color: '#8a978d' },
+  recvOrdered:  { fontSize: 13, fontWeight: '500', color: '#8a978d' },
   recvInputs:   { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   recvField:    { flexGrow: 1, flexBasis: 90, minWidth: 90 },
   gapBox:       { backgroundColor: '#fff3e0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginTop: 6, alignSelf: 'flex-start' },
-  gapText:      { fontSize: 12, fontWeight: '700', color: '#e65100' },
-  recvLabel:    { fontSize: 11, color: '#666', fontWeight: '600', marginBottom: 4 },
+  gapText:      { fontSize: 13, fontWeight: '700', color: '#e65100' },
+  recvLabel:    { fontSize: 13, color: '#666', fontWeight: '600', marginBottom: 4 },
   recvInput:    { borderWidth: 1.5, borderColor: '#b7e4c7', borderRadius: 8, backgroundColor: '#f8fff8', paddingHorizontal: 10, height: 44, fontSize: 16, fontWeight: '700', color: '#1a472a', textAlign: 'center' },
   receiptBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, gap: 6 },
   receiptBtnGreen:  { borderColor: '#2d6a4f', backgroundColor: '#f0fff4' },
@@ -1272,7 +1272,7 @@ const styles = StyleSheet.create({
   emptyHint: { textAlign: 'center', color: '#888', fontSize: 15, marginTop: 20, marginBottom: 10, lineHeight: 26 },
 
   // Add order form
-  stepLabel: { fontSize: 11, fontWeight: '800', color: '#2d6a4f', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
+  stepLabel: { fontSize: 13, fontWeight: '800', color: '#2d6a4f', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
 
   // New-order progress (1 vendor → 2 veg → 3 save)
   progressRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
@@ -1282,7 +1282,7 @@ const styles = StyleSheet.create({
   progDotDone:    { backgroundColor: '#74c69d' },
   progDotText:    { fontSize: 15, fontWeight: '800', color: '#8a978d' },
   progDotTextOn:  { color: '#fff' },
-  progLabel:      { fontSize: 11, color: '#8a978d', marginTop: 4, fontWeight: '600' },
+  progLabel:      { fontSize: 13, color: '#8a978d', marginTop: 4, fontWeight: '600' },
   progLabelActive:{ color: '#1a472a', fontWeight: '800' },
   progLine:       { flex: 1, height: 3, backgroundColor: '#e0e7e2', marginTop: -16 },
   progLineDone:   { backgroundColor: '#74c69d' },
@@ -1301,16 +1301,16 @@ const styles = StyleSheet.create({
   vegChip:      { flexDirection: 'row', alignItems: 'center', backgroundColor: '#e8f5ec', borderRadius: 12, padding: 12, marginBottom: 12, gap: 10 },
   vegChipEmoji: { fontSize: 28 },
   vegChipName:  { fontSize: 16, fontWeight: '700', color: '#1a472a' },
-  vegChipSub:   { fontSize: 12, color: '#666', marginTop: 1 },
+  vegChipSub:   { fontSize: 13, color: '#666', marginTop: 1 },
   vegChipUnit:  { fontSize: 13, fontWeight: '700', color: '#2d6a4f', backgroundColor: '#fff', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   vegChipChange: { fontSize: 16, marginLeft: 4 },
-  inputLabel: { fontSize: 11, color: '#666', fontWeight: '600', marginBottom: 6, marginTop: 10 },
+  inputLabel: { fontSize: 13, color: '#666', fontWeight: '600', marginBottom: 6, marginTop: 10 },
   priceRow:      { flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 4 },
   priceInputWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#b7e4c7', borderRadius: 8, backgroundColor: '#f8fff8', paddingHorizontal: 10, height: 44 },
   rupee:         { fontSize: 18, color: '#2d6a4f', fontWeight: '600', marginRight: 4 },
   priceInput:    { flex: 1, fontSize: 16, fontWeight: '600', color: '#1a1a1a' },
   lineTotal:     { fontSize: 20, fontWeight: '700', color: '#1a472a', paddingVertical: 10 },
-  removeText: { fontSize: 12, color: '#e74c3c', fontWeight: '600' },
+  removeText: { fontSize: 13, color: '#e74c3c', fontWeight: '600' },
   addItemBtn:  { borderWidth: 2, borderColor: '#2d6a4f', borderStyle: 'dashed', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 16 },
   addItemText: { fontSize: 15, color: '#2d6a4f', fontWeight: '700' },
   grandTotalRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#e8f5ec', borderRadius: 12, padding: 18, marginBottom: 16 },
@@ -1333,7 +1333,7 @@ const styles = StyleSheet.create({
   modeBtn:       { flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#ddd', backgroundColor: '#fafafa' },
   modeBtnActive: { borderColor: '#2d6a4f', backgroundColor: '#e8f5ec' },
   modeEmoji:     { fontSize: 24, marginBottom: 4 },
-  modeLabel:     { fontSize: 12, fontWeight: '600', color: '#666' },
+  modeLabel:     { fontSize: 13, fontWeight: '600', color: '#666' },
   modeLabelActive: { color: '#2d6a4f' },
 
   // Receipt attach (inside payment sheet)

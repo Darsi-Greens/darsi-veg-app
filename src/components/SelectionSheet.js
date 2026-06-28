@@ -145,8 +145,8 @@ const styles = StyleSheet.create({
   row:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, gap: 12, minHeight: 64 },
   rowSel: { backgroundColor: '#e8f5ec' },
   rowName: { fontSize: 18, fontWeight: '700', color: '#1a472a' },
-  rowSub:  { fontSize: 12, color: '#666', marginTop: 2 },
-  rowSub2: { fontSize: 11, color: '#888', marginTop: 1 },
+  rowSub:  { fontSize: 13, color: '#666', marginTop: 2 },
+  rowSub2: { fontSize: 13, color: '#888', marginTop: 1 },
 
   unitBadge: { fontSize: 13, fontWeight: '700', color: '#2d6a4f', backgroundColor: '#e8f5ec', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   tick:      { fontSize: 18, color: '#2d6a4f', fontWeight: '900' },

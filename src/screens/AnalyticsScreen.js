@@ -752,14 +752,14 @@ const ProfitRow = ({ label, val, color, plus }) => (
 const PayCell = ({ label, val, color }) => (
   <View style={{ flex: 1, alignItems: 'center' }}>
     <Text style={{ fontSize: 16, fontWeight: '700', color }}>{inr(val ?? 0)}</Text>
-    <Text style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{label}</Text>
+    <Text style={{ fontSize: 13, color: '#888', marginTop: 2 }}>{label}</Text>
   </View>
 );
 
 const MonthCell = ({ label, val, color, bold }) => (
   <View style={{ flex: 1, alignItems: 'center' }}>
     <Text style={{ fontSize: bold ? 18 : 15, fontWeight: bold ? 'bold' : '600', color }}>{inr(val ?? 0)}</Text>
-    <Text style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{label}</Text>
+    <Text style={{ fontSize: 13, color: '#888', marginTop: 2 }}>{label}</Text>
   </View>
 );
 
@@ -781,7 +781,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff', borderRadius: 14, padding: 16,
     elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
   },
-  cardLabel:    { fontSize: 12, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
+  cardLabel:    { fontSize: 13, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
   cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   bigNum:       { fontSize: 36, fontWeight: 'bold', marginBottom: 12 },
   emptyHint:    { color: '#888', fontSize: 13, textAlign: 'center', paddingVertical: 8 },
@@ -794,18 +794,18 @@ const s = StyleSheet.create({
 
   // Profit breakdown
   profitBreak: { gap: 2 },
-  profitNote:  { fontSize: 11, color: '#888', marginTop: 10, fontStyle: 'italic' },
+  profitNote:  { fontSize: 13, color: '#888', marginTop: 10, fontStyle: 'italic' },
 
   // Payment
   payRow:   { flexDirection: 'row', paddingVertical: 8 },
-  txnCount: { fontSize: 12, color: '#888', textAlign: 'center', marginTop: 8 },
+  txnCount: { fontSize: 13, color: '#888', textAlign: 'center', marginTop: 8 },
 
   // Expenses
   addExpBtn:     { backgroundColor: '#e8f5ec', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
   addExpBtnText: { fontSize: 13, fontWeight: '700', color: '#2d6a4f' },
   expRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f5f5f5', gap: 8 },
   expType:  { fontSize: 13, fontWeight: '600', color: '#1a472a', flex: 1 },
-  expNote:  { fontSize: 12, color: '#888', flex: 1 },
+  expNote:  { fontSize: 13, color: '#888', flex: 1 },
   expAmt:   { fontSize: 15, fontWeight: '700', color: '#e74c3c' },
   expTotal: { fontSize: 14, fontWeight: '700', color: '#e74c3c', textAlign: 'right', marginTop: 10 },
 
@@ -821,7 +821,7 @@ const s = StyleSheet.create({
   heroRow:   { flexDirection: 'row', gap: 8, marginBottom: 14 },
   heroCard:  { flex: 1, borderRadius: 14, paddingVertical: 16, paddingHorizontal: 8, alignItems: 'center', elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
   heroNum:   { fontSize: 19, fontWeight: '800' },
-  heroLabel: { fontSize: 11, color: '#666', marginTop: 4, textAlign: 'center', fontWeight: '600' },
+  heroLabel: { fontSize: 13, color: '#666', marginTop: 4, textAlign: 'center', fontWeight: '600' },
   showAllBtn:  { paddingVertical: 12, alignItems: 'center', marginTop: 2 },
   showAllText: { fontSize: 14, fontWeight: '700', color: '#2d6a4f' },
   dayRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
@@ -832,10 +832,10 @@ const s = StyleSheet.create({
   // Vendor
   vendorRow:   { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f5f5f5', flexDirection: 'row' },
   vendorName:  { fontSize: 15, fontWeight: '700', color: '#1a472a' },
-  vendorDetail: { fontSize: 12, color: '#888', marginTop: 2 },
+  vendorDetail: { fontSize: 13, color: '#888', marginTop: 2 },
   vendorAvg:   { fontSize: 15, fontWeight: '700', color: '#2d6a4f' },
-  vendorTotal: { fontSize: 12, color: '#888', marginTop: 2 },
-  vendorHint:  { fontSize: 11, color: '#888', marginTop: 10, textAlign: 'center' },
+  vendorTotal: { fontSize: 13, color: '#888', marginTop: 2 },
+  vendorHint:  { fontSize: 13, color: '#888', marginTop: 10, textAlign: 'center' },
 
   // Credit
   creditCard: {
@@ -845,8 +845,8 @@ const s = StyleSheet.create({
     elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
   },
   creditVeg:  { fontSize: 16, fontWeight: '700', color: '#1a472a' },
-  creditMeta: { fontSize: 12, color: '#666', marginTop: 3 },
-  creditTime: { fontSize: 11, color: '#888', marginTop: 2 },
+  creditMeta: { fontSize: 13, color: '#666', marginTop: 3 },
+  creditTime: { fontSize: 13, color: '#888', marginTop: 2 },
   creditAmt:  { fontSize: 20, fontWeight: 'bold', color: '#e74c3c' },
   paidBtn:    { backgroundColor: '#2d6a4f', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
   paidBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
@@ -860,16 +860,16 @@ const s = StyleSheet.create({
   },
   dueVendorNameEn: { fontSize: 16, fontWeight: '700', color: '#1a472a' },
   dueVendorNameTe: { fontSize: 13, color: '#666', marginTop: 1 },
-  dueMeta:         { fontSize: 12, color: '#888', marginTop: 4 },
+  dueMeta:         { fontSize: 13, color: '#888', marginTop: 4 },
   dueAmt:          { fontSize: 20, fontWeight: 'bold', color: '#e74c3c' },
   duePendingBadge: { backgroundColor: '#fff3cd', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  duePendingText:  { fontSize: 11, fontWeight: '700', color: '#856404' },
+  duePendingText:  { fontSize: 13, fontWeight: '700', color: '#856404' },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalBox: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 10 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#1a472a', marginBottom: 4 },
-  modalLabel: { fontSize: 12, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.4 },
+  modalLabel: { fontSize: 13, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.4 },
   modalInput: {
     borderWidth: 1.5, borderColor: '#b7e4c7', borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 12 : 8,

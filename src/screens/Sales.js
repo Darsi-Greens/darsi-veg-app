@@ -648,16 +648,16 @@ const styles = StyleSheet.create({
     marginTop: 48,
   },
 
-  // Header running-total chip (C1)
+  // Header running-total chip (C1) — today's takings at a glance
   tallyChip: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    alignItems: 'flex-end',
+    backgroundColor: '#52b788',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    alignItems: 'center',
   },
-  tallyAmt:   { color: '#fff', fontSize: 16, fontWeight: '800' },
-  tallyCount: { color: '#cdeedd', fontSize: 10, fontWeight: '600', marginTop: 1 },
+  tallyAmt:   { color: '#fff', fontSize: 20, fontWeight: '900' },
+  tallyCount: { color: '#eafff2', fontSize: 13, fontWeight: '700', marginTop: 1 },
 
   // Toast (C1)
   toast: {
@@ -722,7 +722,7 @@ const styles = StyleSheet.create({
     color: '#1a472a',
   },
   cardNameEn: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#666',
     marginTop: 1,
   },
@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
 
   sectionLabel: {
     alignSelf: 'flex-start',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#666',
     marginTop: 20,
@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
     color: '#2d6a4f',
   },
   unitTabEn: {
-    fontSize: 11,
+    fontSize: 13,
     color: '#666',
     marginTop: 2,
   },
@@ -951,7 +951,7 @@ const styles = StyleSheet.create({
     color: '#2d6a4f',
   },
   payBtnEn: {
-    fontSize: 11,
+    fontSize: 13,
     color: '#666',
     marginTop: 2,
   },

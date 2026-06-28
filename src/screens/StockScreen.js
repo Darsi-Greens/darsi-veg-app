@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a472a', paddingVertical: 16, paddingHorizontal: 20,
   },
   headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
-  headerSub:   { fontSize: 12, color: '#a8d5b5', marginTop: 4 },
+  headerSub:   { fontSize: 13, color: '#a8d5b5', marginTop: 4 },
 
   list: { padding: 12, gap: 12, paddingBottom: 48 },
 
@@ -604,10 +604,10 @@ const styles = StyleSheet.create({
   cardTop:    { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
   emoji:      { fontSize: 30 },
   nameTE:     { fontSize: 17, fontWeight: '700', color: '#1a472a' },
-  nameEN:     { fontSize: 12, color: '#666', marginTop: 2 },
+  nameEN:     { fontSize: 13, color: '#666', marginTop: 2 },
   remainWrap: { alignItems: 'center' },
   remainNum:  { fontSize: 28, fontWeight: 'bold' },
-  remainUnit: { fontSize: 12, fontWeight: '600', marginTop: -4 },
+  remainUnit: { fontSize: 13, fontWeight: '600', marginTop: -4 },
 
   detailRow: {
     flexDirection: 'row', backgroundColor: '#f8fff8', borderRadius: 8,
@@ -615,9 +615,9 @@ const styles = StyleSheet.create({
   },
   detailCell:  { flex: 1, alignItems: 'center' },
   detailVal:   { fontSize: 14, fontWeight: '700', color: '#1a472a' },
-  detailLabel: { fontSize: 10, color: '#888', marginTop: 2 },
+  detailLabel: { fontSize: 13, color: '#888', marginTop: 2 },
 
-  verifiedTag: { fontSize: 11, color: '#2d6a4f', fontWeight: '700', marginTop: 3 },
+  verifiedTag: { fontSize: 13, color: '#2d6a4f', fontWeight: '700', marginTop: 3 },
 
   verifyBtn:        { backgroundColor: '#1a472a', borderRadius: 10, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8, minHeight: 48 },
   verifyBtnDone:    { backgroundColor: '#e8f5ec' },
@@ -625,11 +625,11 @@ const styles = StyleSheet.create({
   verifyBtnTextDone:{ color: '#2d6a4f' },
 
   reorderHint:     { marginTop: 8, backgroundColor: '#fff3e0', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start' },
-  reorderHintText: { fontSize: 12, fontWeight: '700', color: '#e65100' },
+  reorderHintText: { fontSize: 13, fontWeight: '700', color: '#e65100' },
 
   reasonBtn:      { borderWidth: 2, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 14, marginTop: 10 },
   reasonBtnTitle: { fontSize: 16, fontWeight: '700', color: '#1a472a' },
-  reasonBtnSub:   { fontSize: 12, color: '#777', marginTop: 2 },
+  reasonBtnSub:   { fontSize: 13, color: '#777', marginTop: 2 },
 
   actionRow:   { flexDirection: 'row', gap: 8 },
   carryBtn:    { flex: 1, backgroundColor: '#e8f5ec', borderRadius: 8, paddingVertical: 14, alignItems: 'center', minHeight: 48, justifyContent: 'center' },
@@ -638,14 +638,14 @@ const styles = StyleSheet.create({
   wasteBtnText: { fontSize: 13, fontWeight: '700', color: '#c0392b' },
 
   statusBadge:        { marginTop: 8, backgroundColor: '#fdecea', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' },
-  statusBadgeTextOut: { fontSize: 11, fontWeight: '700', color: '#c0392b' },
+  statusBadgeTextOut: { fontSize: 13, fontWeight: '700', color: '#c0392b' },
 
   // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
   modalBox:     { backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '80%', gap: 12 },
   modalTitle:   { fontSize: 18, fontWeight: '700', color: '#1a472a' },
   modalSub:     { fontSize: 14, color: '#555' },
-  modalNote:    { fontSize: 12, color: '#2d6a4f', fontWeight: '600', backgroundColor: '#e8f5ec', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  modalNote:    { fontSize: 13, color: '#2d6a4f', fontWeight: '600', backgroundColor: '#e8f5ec', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   modalInput:   {
     borderWidth: 1.5, borderColor: '#b7e4c7', borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 12 : 8,
