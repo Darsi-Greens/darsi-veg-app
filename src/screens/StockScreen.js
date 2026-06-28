@@ -90,6 +90,8 @@ export default function StockScreen() {
       const sold     = {};  // veg_id → qty
       const wasted   = {};  // veg_id → qty
       const carryOver = {}; // veg_id → qty
+      const buyPrice  = {}; // veg_id → ₹/unit from today's received order (preferred cost)
+      const carryBuy  = {}; // veg_id → ₹/unit remembered on the carry-over (fallback cost)
 
       // From received orders
       ordSnap.docs.forEach((d) => {
@@ -98,6 +100,7 @@ export default function StockScreen() {
           if (!id) return;
           vegMeta[id]  = { name_te: item.veg_name_te, name_en: item.veg_name_en, emoji: item.emoji ?? '🥬', unit: item.unit ?? 'kg' };
           received[id] = (received[id] || 0) + (item.quantity || 0);
+          if (item.buy_price != null) buyPrice[id] = item.buy_price;
         });
       });
 
@@ -120,7 +123,10 @@ export default function StockScreen() {
         if (data.type === 'wastage')    wasted[id]    = (wasted[id]    || 0) + (data.quantity || 0);
         // carry_over is now a single SET value per veg/day (deterministic doc id),
         // so take the value rather than summing — supports decrease + no doubling.
-        if (data.type === 'carry_over') carryOver[id] = (data.quantity || 0);
+        if (data.type === 'carry_over') {
+          carryOver[id] = (data.quantity || 0);
+          if (data.buy_price != null) carryBuy[id] = data.buy_price; // remembered cost
+        }
       });
 
       // Merge all vegetable IDs
@@ -145,8 +151,10 @@ export default function StockScreen() {
         const soldQty   = sold[id]       || 0;
         const wasteQty  = wasted[id]     || 0;
         const carryQty  = carryOver[id]  || 0;
+        // Cost basis: today's order price wins, else the price carried from before.
+        const buy_price = buyPrice[id] ?? carryBuy[id] ?? 0;
         const remaining = parseFloat((carryQty + recvQty - soldQty - wasteQty).toFixed(3));
-        return { id, ...meta, recvQty, soldQty, wasteQty, carryQty, remaining };
+        return { id, ...meta, recvQty, soldQty, wasteQty, carryQty, buy_price, remaining };
       }).sort((a, b) => a.name_te.localeCompare(b.name_te));
 
       setRows(result);
@@ -211,11 +219,13 @@ export default function StockScreen() {
   // ── Carry-over: single SET value per veg/day (deterministic doc id) ──────────
   // Overwrites the same doc, so it supports increase AND decrease and never
   // doubles. Used both for manual entry and auto carry-over from verification.
-  const writeCarryOver = async (vegId, name, unit, qty, dateStr) => {
+  const writeCarryOver = async (vegId, name, unit, qty, dateStr, buyPrice = 0) => {
     const docId = `carryover_${dateStr}_${vegId}`;
     const data = {
       veg_id: vegId, veg_name_te: name, type: 'carry_over',
       quantity: qty, unit, log_date: dateStr,
+      // Remember the cost so tomorrow's COGS isn't ₹0 when there's no new order.
+      buy_price: buyPrice || 0,
     };
     try {
       await setDoc(doc(db, 'stock_log', docId), { ...data, created_at: serverTimestamp() });
@@ -243,7 +253,7 @@ export default function StockScreen() {
     setCarryQty('');
     setSavingCarry(false);
     Voice.speak(`నిన్న మిగిలింది ${target} ${UNIT_TE[carryModal.unit] ?? 'కేజీ'}`);
-    await writeCarryOver(carryModal.veg_id, carryModal.veg_name_te, carryModal.unit, target, dateStr);
+    await writeCarryOver(carryModal.veg_id, carryModal.veg_name_te, carryModal.unit, target, dateStr, carryModal.buy_price);
   };
 
   // ── Verify stock: parent counts what's actually left; app reconciles ─────────
@@ -282,7 +292,7 @@ export default function StockScreen() {
     const row = verifyModal.row;
     if (applied?.type === 'waste') await appendWaste(row.id, row.name_te, row.unit, applied.qty);
     if (applied?.type === 'sale')  await appendSale(row, applied.qty);
-    if (actual > 0) await writeCarryOver(row.id, row.name_te, row.unit, actual, tomorrowStr());
+    if (actual > 0) await writeCarryOver(row.id, row.name_te, row.unit, actual, tomorrowStr(), row.buy_price);
 
     setVerified((v) => ({ ...v, [row.id]: true }));
     setRows((prev) => prev.map((r) => {
@@ -397,7 +407,7 @@ export default function StockScreen() {
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={styles.carryBtn}
-            onPress={() => { setCarryModal({ veg_id: item.id, veg_name_te: item.name_te, unit: item.unit, current: item.carryQty }); setCarryQty(item.carryQty ? String(item.carryQty) : ''); }}
+            onPress={() => { setCarryModal({ veg_id: item.id, veg_name_te: item.name_te, unit: item.unit, current: item.carryQty, buy_price: item.buy_price }); setCarryQty(item.carryQty ? String(item.carryQty) : ''); }}
           >
             <Text style={styles.carryBtnText}>📦 నిన్న మిగిలింది</Text>
           </TouchableOpacity>

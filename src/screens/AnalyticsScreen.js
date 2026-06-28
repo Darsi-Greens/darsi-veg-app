@@ -101,7 +101,7 @@ export default function AnalyticsScreen() {
         getDocs(query(collection(db, 'sales'),          where('sale_date',   '==', today))),
         getDocs(query(collection(db, 'vendor_orders'),  where('order_date',  '==', today), where('status', '==', 'received'))),
         getDocs(query(collection(db, 'daily_expenses'), where('expense_date','==', today))),
-        getDocs(query(collection(db, 'stock_log'),      where('log_date',    '==', today), where('type', '==', 'wastage'))),
+        getDocs(query(collection(db, 'stock_log'),      where('log_date',    '==', today))),
       ]);
 
       // Aggregate sales
@@ -147,7 +147,18 @@ export default function AnalyticsScreen() {
         });
       });
 
-      // Cost of goods SOLD = Σ (sold qty × buy price)
+      // Carry-over cost fallback: veg sold from yesterday's stock with no order
+      // today would otherwise book ₹0 COGS. The carry-over log remembers the cost.
+      stockSnap.docs.forEach((d) => {
+        const w = d.data();
+        if (w.type === 'carry_over' && w.veg_id && w.buy_price != null && buyPriceMap[w.veg_id] == null) {
+          buyPriceMap[w.veg_id] = w.buy_price;
+          if (vegMap[w.veg_id]) vegMap[w.veg_id].buy_price = w.buy_price;
+        }
+      });
+
+      // Cost of goods SOLD = Σ (sold qty × buy price), buy price from today's order
+      // or, failing that, the cost remembered on the carry-over.
       const cogs = Object.values(vegMap).reduce((sum, v) => sum + (v.buy_price || 0) * (v.qty || 0), 0);
 
       // Expenses
@@ -159,6 +170,7 @@ export default function AnalyticsScreen() {
       let wasteCost = 0;
       stockSnap.docs.forEach((d) => {
         const w = d.data();
+        if (w.type !== 'wastage') return; // stockSnap now also holds carry_over docs
         const bp = buyPriceMap[w.veg_id] ?? vegMap[w.veg_id]?.buy_price ?? 0;
         wasteCost += bp * (w.quantity || 0);
       });
@@ -181,62 +193,100 @@ export default function AnalyticsScreen() {
   const loadMonth = useCallback(async () => {
     const prefix = monthPrefix();
     try {
-      const [salesSnap, ordSnap, expSnap] = await Promise.all([
+      const [salesSnap, ordSnap, expSnap, stockSnap] = await Promise.all([
         getDocs(query(collection(db, 'sales'),          where('sale_date',    '>=', `${prefix}-01`), where('sale_date', '<=', `${prefix}-31`))),
         getDocs(query(collection(db, 'vendor_orders'),  where('order_date',   '>=', `${prefix}-01`), where('order_date', '<=', `${prefix}-31`))),
         getDocs(query(collection(db, 'daily_expenses'), where('expense_date', '>=', `${prefix}-01`), where('expense_date', '<=', `${prefix}-31`))),
+        getDocs(query(collection(db, 'stock_log'),      where('log_date',     '>=', `${prefix}-01`), where('log_date', '<=', `${prefix}-31`))),
       ]);
 
-      // Per-day revenue
-      const dayMap     = {}; // date → { sales, cost, expenses }
+      // date → { sales, cogs, waste, purchases, expenses } — profit is COGS-based,
+      // identical to the Today tab so the two never disagree.
+      const dayMap     = {};
       const vegQtyMap  = {}; // veg_id → { name_te, emoji, qty }
-      const vendorMap  = {}; // vendor_id → { name, totalOrders, totalSpend }
+      const vendorMap  = {}; // vendor_id → { name, totalOrders, totalSpend, kgQty, kgSpend }
+      // Buy price per veg per date: today's order wins; carry-over remembers cost.
+      const buyByDate   = {}; // date → { veg_id → buy_price }
+      const carryByDate = {}; // date → { veg_id → buy_price }
+      const dayOf = (date) => (dayMap[date] = dayMap[date] || { sales: 0, cogs: 0, waste: 0, purchases: 0, expenses: 0 });
+      const costFor = (date, id) => buyByDate[date]?.[id] ?? carryByDate[date]?.[id] ?? 0;
 
+      // 1) Orders → purchases (context), vendor stats, and the buy-price map.
+      ordSnap.docs.forEach((d) => {
+        const o = d.data();
+        if (o.status !== 'received') return; // filter client-side — avoids composite index
+        dayOf(o.order_date).purchases += o.total_amount || 0;
+        (o.items || []).forEach((item) => {
+          if (item.veg_id != null && item.buy_price != null) {
+            buyByDate[o.order_date] = buyByDate[o.order_date] || {};
+            buyByDate[o.order_date][item.veg_id] = item.buy_price;
+          }
+        });
+        const vid = o.vendor_id || o.vendor_name;
+        if (vid) {
+          vendorMap[vid] = vendorMap[vid] || { name: o.vendor_name, totalOrders: 0, totalSpend: 0, kgQty: 0, kgSpend: 0 };
+          vendorMap[vid].totalOrders++;
+          vendorMap[vid].totalSpend += o.total_amount || 0;
+          // avg ₹/kg must only mix kg-unit items, else pieces/bundles pollute it.
+          (o.items || []).forEach((item) => {
+            if ((item.unit ?? 'kg') === 'kg') {
+              vendorMap[vid].kgQty   += item.quantity || 0;
+              vendorMap[vid].kgSpend += item.line_total ?? (item.quantity || 0) * (item.buy_price || 0);
+            }
+          });
+        }
+      });
+
+      // 2) Carry-over docs remember a cost for veg sold with no order that day.
+      stockSnap.docs.forEach((d) => {
+        const w = d.data();
+        if (w.type === 'carry_over' && w.veg_id && w.buy_price != null) {
+          carryByDate[w.log_date] = carryByDate[w.log_date] || {};
+          carryByDate[w.log_date][w.veg_id] = w.buy_price;
+        }
+      });
+
+      // 3) Sales → revenue + COGS (sold qty × that day's buy price).
       salesSnap.docs.forEach((d) => {
         const s = d.data();
-        dayMap[s.sale_date] = dayMap[s.sale_date] || { sales: 0, cost: 0, expenses: 0 };
-        dayMap[s.sale_date].sales += s.total_amount || 0;
+        const day = dayOf(s.sale_date);
+        day.sales += s.total_amount || 0;
         const id = s.veg_id || s.veg_name_en;
         if (id) {
+          day.cogs += costFor(s.sale_date, id) * toBaseQty(s.quantity, s.unit);
           vegQtyMap[id] = vegQtyMap[id] || { name_te: s.veg_name_te, name_en: s.veg_name_en, emoji: s.veg_emoji ?? '🥬', qty: 0 };
           vegQtyMap[id].qty += toBaseQty(s.quantity, s.unit);
         }
       });
 
-      ordSnap.docs.forEach((d) => {
-        const o = d.data();
-        if (o.status !== 'received') return; // filter client-side — avoids composite index
-        dayMap[o.order_date] = dayMap[o.order_date] || { sales: 0, cost: 0, expenses: 0 };
-        dayMap[o.order_date].cost += o.total_amount || 0;
-        const vid = o.vendor_id || o.vendor_name;
-        if (vid) {
-          vendorMap[vid] = vendorMap[vid] || { name: o.vendor_name, totalOrders: 0, totalSpend: 0, totalQty: 0 };
-          vendorMap[vid].totalOrders++;
-          vendorMap[vid].totalSpend += o.total_amount || 0;
-          (o.items || []).forEach((item) => { vendorMap[vid].totalQty += item.quantity || 0; });
-        }
+      // 4) Wastage cost (same buy-price basis).
+      stockSnap.docs.forEach((d) => {
+        const w = d.data();
+        if (w.type !== 'wastage' || !w.veg_id) return;
+        dayOf(w.log_date).waste += costFor(w.log_date, w.veg_id) * (w.quantity || 0);
       });
 
       expSnap.docs.forEach((d) => {
         const e = d.data();
-        dayMap[e.expense_date] = dayMap[e.expense_date] || { sales: 0, cost: 0, expenses: 0 };
-        dayMap[e.expense_date].expenses += e.amount || 0;
+        dayOf(e.expense_date).expenses += e.amount || 0;
       });
 
       const days = Object.entries(dayMap)
         .sort(([a], [b]) => b.localeCompare(a))
-        .map(([date, v]) => ({ date, ...v, profit: v.sales - v.cost - v.expenses }));
+        .map(([date, v]) => ({ date, ...v, profit: v.sales - v.cogs - v.waste - v.expenses }));
 
       const monthTotals = days.reduce((acc, d) => ({
-        sales: acc.sales + d.sales,
-        cost:  acc.cost  + d.cost,
-        exp:   acc.exp   + d.expenses,
+        sales:  acc.sales  + d.sales,
+        cogs:   acc.cogs   + d.cogs,
+        waste:  acc.waste  + d.waste,
+        cost:   acc.cost   + d.purchases, // cash out on buying (context)
+        exp:    acc.exp    + d.expenses,
         profit: acc.profit + d.profit,
-      }), { sales: 0, cost: 0, exp: 0, profit: 0 });
+      }), { sales: 0, cogs: 0, waste: 0, cost: 0, exp: 0, profit: 0 });
 
       const topVegs = Object.values(vegQtyMap).sort((a, b) => b.qty - a.qty).slice(0, 5);
       const vendors = Object.values(vendorMap)
-        .map((v) => ({ ...v, avgPerKg: v.totalQty > 0 ? v.totalSpend / v.totalQty : 0 }))
+        .map((v) => ({ ...v, avgPerKg: v.kgQty > 0 ? v.kgSpend / v.kgQty : 0 }))
         .sort((a, b) => a.avgPerKg - b.avgPerKg);
 
       setMonthData({ days, monthTotals, topVegs, vendors });
@@ -461,15 +511,30 @@ export default function AnalyticsScreen() {
               <Text style={s.profitNote}>
                 ఈరోజు కొన్నది · Bought today: {inr(td?.totalBuyCost ?? 0)}  ·  మిగిలిన సరుకు రేపటికి
               </Text>
+              {/* Cash actually in hand vs credit given — profit above counts credit
+                  as income even though that money isn't collected yet. */}
+              <View style={s.cashSplitRow}>
+                <Text style={s.cashSplit}>
+                  💵 చేతికి వచ్చింది · In hand: {inr((td?.payBreak?.cash ?? 0) + (td?.payBreak?.upi ?? 0))}
+                </Text>
+                {(td?.payBreak?.credit ?? 0) > 0 && (
+                  <Text style={[s.cashSplit, { color: '#e74c3c' }]}>
+                    📋 అప్పు ఇచ్చారు · Credit out: {inr(td.payBreak.credit)}
+                  </Text>
+                )}
+              </View>
             </View>
 
-            {/* Weigh-check loss (Phase B) — money lost to short weight */}
-            {(td?.weightLostRs ?? 0) > 0 && (
-              <View style={[s.card, { backgroundColor: '#fff3e0' }]}>
-                <Text style={s.cardLabel}>⚖️ తూకం నష్టం / Weight Loss</Text>
-                <Text style={[s.bigNum, { color: '#e65100' }]}>{inr(td.weightLostRs)}</Text>
+            {/* Weigh-check (Phase B) — bags weighed less than their marked kg.
+                You pay for the WEIGHED amount, so this is NOT a rupee loss — it's
+                short weight: the market under-filled vs what the bags claimed. */}
+            {(td?.weightShortKg ?? 0) > 0 && (
+              <View style={[s.card, { backgroundColor: '#fffbe6' }]}>
+                <Text style={s.cardLabel}>⚖️ తూకం తక్కువ / Short Weight</Text>
+                <Text style={[s.bigNum, { color: '#b8860b' }]}>{td.weightShortKg.toFixed(1)} కేజీ</Text>
                 <Text style={{ fontSize: 13, color: '#8a6d3b' }}>
-                  మార్కెట్ {td.weightShortKg.toFixed(1)} కేజీ తక్కువ తూకం వేసింది · {td.weightShortKg.toFixed(1)} kg short on the bags today
+                  బస్తాల మీద రాసిన దానికంటే {td.weightShortKg.toFixed(1)} కేజీ తక్కువ వచ్చింది. డబ్బు నష్టం లేదు — తూచిన దానికే చెల్లించారు.{'\n'}
+                  {td.weightShortKg.toFixed(1)} kg less than the bags claimed (you only paid for the weighed amount).
                 </Text>
               </View>
             )}
@@ -589,7 +654,7 @@ export default function AnalyticsScreen() {
                   <View key={i} style={s.vendorRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.vendorName}>{v.name}</Text>
-                      <Text style={s.vendorDetail}>{v.totalOrders} orders · {v.totalQty.toFixed(0)} kg total</Text>
+                      <Text style={s.vendorDetail}>{v.totalOrders} orders · {v.kgQty.toFixed(0)} kg total</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={s.vendorAvg}>{inr(v.avgPerKg, 1)}/kg</Text>
@@ -797,6 +862,8 @@ const s = StyleSheet.create({
   // Profit breakdown
   profitBreak: { gap: 2 },
   profitNote:  { fontSize: 13, color: '#888', marginTop: 10, fontStyle: 'italic' },
+  cashSplitRow:{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#eee', gap: 4 },
+  cashSplit:   { fontSize: 14, color: '#2d6a4f', fontWeight: '700' },
 
   // Payment
   payRow:   { flexDirection: 'row', paddingVertical: 8 },

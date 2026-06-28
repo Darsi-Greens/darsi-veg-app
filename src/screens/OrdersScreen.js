@@ -687,7 +687,7 @@ export default function OrdersScreen() {
         {/* Weigh-check warning (Phase B) */}
         {isReceived && shortKg > 0 && (
           <View style={styles.gapBox}>
-            <Text style={styles.gapText}>⚖️ తూకం {shortKg.toFixed(1)} కేజీ తక్కువ · {inr(lostRs)} నష్టం</Text>
+            <Text style={styles.gapText}>⚖️ తూకం {shortKg.toFixed(1)} కేజీ తక్కువ వచ్చింది · {shortKg.toFixed(1)} kg short</Text>
           </View>
         )}
 
