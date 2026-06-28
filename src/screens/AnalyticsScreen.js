@@ -15,6 +15,7 @@ import { SyncQueue } from '../services/SyncQueue';
 import { newId } from '../services/ids';
 import { inr } from '../utils/money';
 import { Voice } from '../services/Speak';
+import VegImage from '../components/VegImage';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 
@@ -105,7 +106,7 @@ export default function AnalyticsScreen() {
         payBreak[pm] = (payBreak[pm] || 0) + (s.total_amount || 0);
         const id = s.veg_id || s.veg_name_en;
         if (id) {
-          vegMap[id] = vegMap[id] || { name_te: s.veg_name_te, emoji: s.veg_emoji ?? '🥬', qty: 0, revenue: 0, sell_price: s.sell_price || 0, buy_price: 0 };
+          vegMap[id] = vegMap[id] || { name_te: s.veg_name_te, name_en: s.veg_name_en, emoji: s.veg_emoji ?? '🥬', qty: 0, revenue: 0, sell_price: s.sell_price || 0, buy_price: 0 };
           vegMap[id].qty     += s.quantity || 0;
           vegMap[id].revenue += s.total_amount || 0;
         }
@@ -186,7 +187,7 @@ export default function AnalyticsScreen() {
         dayMap[s.sale_date].sales += s.total_amount || 0;
         const id = s.veg_id || s.veg_name_en;
         if (id) {
-          vegQtyMap[id] = vegQtyMap[id] || { name_te: s.veg_name_te, emoji: s.veg_emoji ?? '🥬', qty: 0 };
+          vegQtyMap[id] = vegQtyMap[id] || { name_te: s.veg_name_te, name_en: s.veg_name_en, emoji: s.veg_emoji ?? '🥬', qty: 0 };
           vegQtyMap[id].qty += s.quantity || 0;
         }
       });
@@ -502,7 +503,7 @@ export default function AnalyticsScreen() {
                 <Text style={s.cardLabel}>టాప్ అమ్మకాలు / Top Sales</Text>
                 {td.topVegs.map((v) => (
                   <View key={v.id} style={s.vegRow}>
-                    <Text style={s.vegEmoji}>{v.emoji}</Text>
+                    <VegImage veg={v} size={32} style={{ marginRight: 8 }} />
                     <Text style={s.vegName}>{v.name_te}</Text>
                     <Text style={s.vegQty}>{v.qty.toFixed(1)} {v.unit ?? 'kg'}</Text>
                     <Text style={s.vegRev}>{inr(v.revenue)}</Text>
@@ -547,7 +548,7 @@ export default function AnalyticsScreen() {
                 <Text style={s.cardLabel}>టాప్ కూరగాయలు (నెల) / Top Veg Month</Text>
                 {monthData.topVegs.map((v, i) => (
                   <View key={i} style={s.vegRow}>
-                    <Text style={s.vegEmoji}>{v.emoji}</Text>
+                    <VegImage veg={v} size={32} style={{ marginRight: 8 }} />
                     <Text style={s.vegName}>{v.name_te}</Text>
                     <Text style={s.vegRev}>{v.qty.toFixed(1)} kg</Text>
                   </View>

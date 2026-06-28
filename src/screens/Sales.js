@@ -27,6 +27,7 @@ import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 import { inr } from '../utils/money';
 import { Voice } from '../services/Speak';
+import VegImage from '../components/VegImage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_SIZE = (SCREEN_WIDTH - 48) / 2;
@@ -376,13 +377,7 @@ export default function Sales() {
         onPress={() => openModal(item)}
         activeOpacity={0.78}
       >
-        {item.photo_url ? (
-          <Image source={{ uri: item.photo_url }} style={styles.cardPhoto} resizeMode="cover" />
-        ) : (
-          <View style={styles.cardEmojiBox}>
-            <Text style={styles.cardEmoji}>{item.emoji ?? '🥬'}</Text>
-          </View>
-        )}
+        <VegImage veg={item} size={CARD_SIZE} rounded={false} style={{ borderRadius: 0 }} />
         <View style={styles.cardBody}>
           <Text style={styles.cardNameTe} numberOfLines={1}>{item.name_te}</Text>
           <Text style={styles.cardNameEn} numberOfLines={1}>{item.name_en}</Text>
@@ -414,14 +409,8 @@ export default function Sales() {
             >
               <View style={styles.handle} />
 
-              {/* Photo / emoji */}
-              {selected.photo_url ? (
-                <Image source={{ uri: selected.photo_url }} style={styles.sheetPhoto} resizeMode="cover" />
-              ) : (
-                <View style={styles.sheetEmojiBox}>
-                  <Text style={styles.sheetEmoji}>{selected.emoji ?? '🥬'}</Text>
-                </View>
-              )}
+              {/* Photo */}
+              <VegImage veg={selected} size={140} style={{ marginBottom: 16 }} />
 
               {/* Names */}
               <Text style={styles.sheetNameTe}>{selected.name_te}</Text>

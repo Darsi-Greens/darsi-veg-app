@@ -4,6 +4,7 @@ import {
   StyleSheet, Platform,
 } from 'react-native';
 import { Voice } from '../services/Speak';
+import VegImage from './VegImage';
 
 const UNIT_TE = { kg: 'కేజీ', piece: 'పీస్', bundle: 'కట్ట', dozen: 'డజన్' };
 
@@ -73,7 +74,7 @@ export default function SelectionSheet({
         onPress={() => handleSelect(item)}
         activeOpacity={0.75}
       >
-        <Text style={{ fontSize: 28 }}>{item.emoji ?? '🥬'}</Text>
+        <VegImage veg={item} size={44} />
         <View style={{ flex: 1 }}>
           <Text style={styles.rowName}>{item.name_te}</Text>
           <Text style={styles.rowSub}>{item.name_en}</Text>

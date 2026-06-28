@@ -379,7 +379,7 @@ function VegetablesTab() {
   const [loading,     setLoading]     = useState(true);
   const [modalOpen,   setModalOpen]   = useState(false);
   const [editTarget,  setEditTarget]  = useState(null);
-  const [form,        setForm]        = useState({ name_te: '', name_en: '', emoji: '', unit: 'kg', active: true });
+  const [form,        setForm]        = useState({ name_te: '', name_en: '', emoji: '', photo_url: '', unit: 'kg', active: true });
   const [saving,      setSaving]      = useState(false);
   const [translating, setTranslating] = useState(false);
 
@@ -411,13 +411,13 @@ function VegetablesTab() {
 
   const openAdd = () => {
     setEditTarget(null);
-    setForm({ name_te: '', name_en: '', emoji: '🥬', unit: 'kg', active: true });
+    setForm({ name_te: '', name_en: '', emoji: '🥬', photo_url: '', unit: 'kg', active: true });
     setModalOpen(true);
   };
 
   const openEdit = (v) => {
     setEditTarget(v);
-    setForm({ name_te: v.name_te, name_en: v.name_en, emoji: v.emoji ?? '', unit: v.unit ?? 'kg', active: v.active !== false });
+    setForm({ name_te: v.name_te, name_en: v.name_en, emoji: v.emoji ?? '', photo_url: v.photo_url ?? '', unit: v.unit ?? 'kg', active: v.active !== false });
     setModalOpen(true);
   };
 
@@ -437,6 +437,7 @@ function VegetablesTab() {
         name_te:    form.name_te.trim() || form.name_en.trim(),
         name_en:    form.name_en.trim(),
         emoji:      form.emoji.trim() || '🥬',
+        photo_url:  form.photo_url.trim(),
         unit:       form.unit,
         active:     form.active,
         updated_at: serverTimestamp(),
@@ -536,6 +537,15 @@ function VegetablesTab() {
               placeholder="🍅"
               value={form.emoji}
               onChangeText={(v) => setForm((p) => ({ ...p, emoji: v }))}
+            />
+
+            <Text style={styles.fieldLabel}>ఫోటో లింక్ · Photo URL (Cloudinary)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="https://res.cloudinary.com/.../tomato.jpg"
+              autoCapitalize="none"
+              value={form.photo_url}
+              onChangeText={(v) => setForm((p) => ({ ...p, photo_url: v }))}
             />
 
             <Text style={styles.fieldLabel}>Unit / యూనిట్</Text>

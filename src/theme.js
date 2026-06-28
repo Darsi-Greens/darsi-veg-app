@@ -54,9 +54,14 @@ export const shadow = {
   },
 };
 
+// Type scale raised for low-literacy users — nothing below 13.
 export const font = {
-  h1: 26, h2: 20, h3: 17, body: 15, small: 13, tiny: 11,
+  h1: 30, h2: 24, h3: 20, body: 18, small: 15, tiny: 13,
+  heroNum: 40, // big stat number (profit, stock remaining, etc.)
 };
+
+// Minimum comfortable touch target for big fingers / shaky hands.
+export const touch = { min: 56 };
 
 // Shared date helpers (Telugu weekday + friendly date) used by AppHeader
 const TE_DAYS   = ['ఆదివారం', 'సోమవారం', 'మంగళవారం', 'బుధవారం', 'గురువారం', 'శుక్రవారం', 'శనివారం'];

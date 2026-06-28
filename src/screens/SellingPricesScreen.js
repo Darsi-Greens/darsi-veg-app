@@ -14,6 +14,7 @@ import { SyncQueue } from '../services/SyncQueue';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 import { Voice } from '../services/Speak';
+import VegImage from '../components/VegImage';
 
 const UNIT_TE = { kg: 'కేజీ', bundle: 'కట్ట', piece: 'పీస్', dozen: 'డజన్' };
 
@@ -202,7 +203,7 @@ export default function SellingPricesScreen() {
 
     return (
       <View style={styles.row}>
-        <Text style={styles.emoji}>{item.emoji ?? '🥬'}</Text>
+        <VegImage veg={item} size={46} />
         <View style={styles.nameCol}>
           <Text style={styles.teluguName}>{item.name_te}</Text>
           <Text style={styles.englishName}>{item.name_en}</Text>

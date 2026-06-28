@@ -16,6 +16,7 @@ import { SyncQueue } from '../services/SyncQueue';
 import { newId } from '../services/ids';
 import { inr } from '../utils/money';
 import { Voice } from '../services/Speak';
+import VegImage from '../components/VegImage';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 import SelectionSheet from '../components/SelectionSheet';
@@ -840,7 +841,7 @@ export default function OrdersScreen() {
                   <View key={idx} style={styles.itemCard}>
                     {item.veg ? (
                       <TouchableOpacity style={styles.vegChip} onPress={() => setVegSheetOpenIdx(idx)}>
-                        <Text style={styles.vegChipEmoji}>{item.veg.emoji ?? '🥬'}</Text>
+                        <VegImage veg={item.veg} size={40} />
                         <View style={{ flex: 1 }}>
                           <Text style={styles.vegChipName}>{item.veg.name_te}</Text>
                           <Text style={styles.vegChipSub}>{item.veg.name_en}</Text>

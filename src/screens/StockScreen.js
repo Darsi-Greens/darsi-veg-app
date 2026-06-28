@@ -13,6 +13,7 @@ import { LocalDB }  from '../services/LocalDB';
 import { SyncQueue } from '../services/SyncQueue';
 import { newId } from '../services/ids';
 import { Voice } from '../services/Speak';
+import VegImage from '../components/VegImage';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 
@@ -131,11 +132,12 @@ export default function StockScreen() {
       const result = Array.from(allIds).map((id) => {
         const meta      = vegMeta[id] || { name_te: id, name_en: id, emoji: '🥬', unit: 'kg' };
         const m         = masterById[id];
-        if (m) { // master wins for unit/name/emoji
-          if (m.unit)    meta.unit    = m.unit;
-          if (m.name_te) meta.name_te = m.name_te;
-          if (m.name_en) meta.name_en = m.name_en;
-          if (m.emoji)   meta.emoji   = m.emoji;
+        if (m) { // master wins for unit/name/emoji/photo
+          if (m.unit)      meta.unit      = m.unit;
+          if (m.name_te)   meta.name_te   = m.name_te;
+          if (m.name_en)   meta.name_en   = m.name_en;
+          if (m.emoji)     meta.emoji     = m.emoji;
+          if (m.photo_url) meta.photo_url = m.photo_url;
         }
         const recvQty   = received[id]   || 0;
         const soldQty   = sold[id]       || 0;
@@ -342,7 +344,7 @@ export default function StockScreen() {
     return (
       <View style={[styles.card, isOut && styles.cardOut, isLow && styles.cardLow]}>
         <View style={styles.cardTop}>
-          <Text style={styles.emoji}>{item.emoji ?? '🥬'}</Text>
+          <VegImage veg={item} size={52} />
           <View style={{ flex: 1 }}>
             <Text style={styles.nameTE}>{item.name_te}</Text>
             <Text style={styles.nameEN}>{item.name_en}</Text>

@@ -42,8 +42,13 @@ src/
   firebase/
     config.js        Firebase initialisation
   screens/
-    PinLogin.js      PIN entry screen (shop owner login)
-    MorningPrices.js Set daily vegetable prices (Telugu + English)
+    PinLogin.js            PIN entry (shop login)
+    OrdersScreen.js        Vendor orders (bags -> receive: weigh + bill)
+    SellingPricesScreen.js Set today's selling prices
+    Sales.js               Tap veg -> qty -> record sale
+    StockScreen.js         Remaining stock, wastage, verify
+    AnalyticsScreen.js     Profit, credit, vendor dues, weigh-loss
+    admin/AdminPanel.js    Vendors / Vegetables / Settings (PIN-gated)
 ```
 
 ## Environment Variables
