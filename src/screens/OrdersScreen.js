@@ -1020,7 +1020,7 @@ export default function OrdersScreen() {
                     {it.order_mode === 'bag' ? (
                       <>
                       <View style={styles.recvField}>
-                        <Text style={styles.recvLabel}>తూకం · Weighed</Text>
+                        <Text style={styles.recvLabel}>తూకం (కేజీ)</Text>
                         <TextInput
                           style={styles.recvInput} keyboardType="numeric" placeholder="0" placeholderTextColor="#bbb"
                           value={r.weighed}
@@ -1030,7 +1030,7 @@ export default function OrdersScreen() {
                         />
                       </View>
                       <View style={styles.recvField}>
-                        <Text style={styles.recvLabel}>బస్తా మీద · Marked</Text>
+                        <Text style={styles.recvLabel}>బస్తా మీద</Text>
                         <TextInput
                           style={styles.recvInput} keyboardType="numeric" placeholder="0" placeholderTextColor="#bbb"
                           value={r.marked}
@@ -1041,7 +1041,7 @@ export default function OrdersScreen() {
                       </>
                     ) : (
                       <View style={styles.recvField}>
-                        <Text style={styles.recvLabel}>ఎంత ({u}) · Qty</Text>
+                        <Text style={styles.recvLabel}>ఎంత ({u})</Text>
                         <TextInput
                           style={styles.recvInput} keyboardType="numeric" placeholder="0" placeholderTextColor="#bbb"
                           value={r.quantity}
@@ -1051,7 +1051,7 @@ export default function OrdersScreen() {
                       </View>
                     )}
                     <View style={styles.recvField}>
-                      <Text style={styles.recvLabel}>బిల్లు రేటు ₹ · Bill price</Text>
+                      <Text style={styles.recvLabel}>బిల్లు రేటు ₹</Text>
                       <TextInput
                         style={styles.recvInput} keyboardType="numeric" placeholder="0" placeholderTextColor="#bbb"
                         value={r.price}
@@ -1214,7 +1214,7 @@ const styles = StyleSheet.create({
   badgeText:     { fontSize: 13, fontWeight: '800' },
 
   orderCard:         { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 12, borderLeftWidth: 5, borderLeftColor: '#f6a623', elevation: 2, shadowColor: '#1a472a', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-  orderCardReceived: { borderLeftColor: '#2d6a4f', backgroundColor: '#f8fff8' },
+  orderCardReceived: { borderLeftColor: '#2d6a4f', backgroundColor: '#e3f5ea', borderWidth: 1, borderColor: '#bfe6cf' },
   orderHeader:  { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   orderVendor:  { fontSize: 17, fontWeight: '800', color: '#1a472a' },
   orderMeta:    { fontSize: 13, color: '#8a978d', marginTop: 2 },
