@@ -869,6 +869,7 @@ export default function OrdersScreen() {
                               placeholder="ఉదా. 100"
                               placeholderTextColor="#bbb"
                               value={item.expKg}
+                              onFocus={() => Voice.speak(`${item.veg?.name_te ?? ''} అంచనా కేజీలు ఎంటర్ చేయండి`)}
                               onChangeText={(v) => { const c = v.replace(',', '.'); if (/^\d*\.?\d*$/.test(c)) updateField(idx, 'expKg', c); }}
                             />
                           </>
@@ -892,6 +893,7 @@ export default function OrdersScreen() {
                             placeholder="ఉదా. 40"
                             placeholderTextColor="#bbb"
                             value={item.expPrice}
+                            onFocus={() => Voice.speak(`${item.veg?.name_te ?? ''} అనుకున్న రేటు ఎంటర్ చేయండి`)}
                             onChangeText={(v) => { const c = v.replace(',', '.'); if (/^\d*\.?\d*$/.test(c)) updateField(idx, 'expPrice', c); }}
                           />
                         </View>
@@ -980,6 +982,7 @@ export default function OrdersScreen() {
                         <TextInput
                           style={styles.recvInput} keyboardType="numeric" placeholder="0" placeholderTextColor="#bbb"
                           value={r.weighed}
+                          onFocus={() => Voice.speak(`${it.veg_name_te} తూకం ఎంటర్ చేయండి`)}
                           onChangeText={(v) => { const c = v.replace(',', '.'); if (/^\d*\.?\d*$/.test(c)) updateRecv(idx, 'weighed', c); }}
                           onBlur={() => { if (r.weighed) Voice.speak(`${it.veg_name_te} ${r.weighed} కేజీ`); }}
                         />
@@ -990,6 +993,7 @@ export default function OrdersScreen() {
                         <TextInput
                           style={styles.recvInput} keyboardType="numeric" placeholder="0" placeholderTextColor="#bbb"
                           value={r.quantity}
+                          onFocus={() => Voice.speak(`${it.veg_name_te} ఎంత ఎంటర్ చేయండి`)}
                           onChangeText={(v) => { const c = v.replace(',', '.'); if (/^\d*\.?\d*$/.test(c)) updateRecv(idx, 'quantity', c); }}
                         />
                       </View>
