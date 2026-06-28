@@ -407,8 +407,8 @@ export default function StockScreen() {
           </TouchableOpacity>
         </View>
 
-        {isOut  && <View style={styles.statusBadge}><Text style={styles.statusBadgeTextOut}>అయిపోయింది / Out of Stock</Text></View>}
-        {isLow  && !isOut && <View style={[styles.statusBadge, { backgroundColor: '#fff3cd' }]}><Text style={[styles.statusBadgeTextOut, { color: '#856404' }]}>కొంచెమే ఉంది / Low Stock</Text></View>}
+        {isOut  && <View style={styles.statusBadge}><Text style={styles.statusBadgeTextOut}>⛔ అయిపోయింది / Out of Stock</Text></View>}
+        {isLow  && !isOut && <View style={[styles.statusBadge, { backgroundColor: '#fff3cd' }]}><Text style={[styles.statusBadgeTextOut, { color: '#856404' }]}>⚠️ కొంచెమే ఉంది / Low Stock</Text></View>}
 
         {needReorder && (
           <View style={styles.reorderHint}>
