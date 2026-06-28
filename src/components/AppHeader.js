@@ -57,8 +57,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  titleWrap: { flex: 1 },
-  title: { fontSize: font.h1, fontWeight: '800', color: colors.onDark, letterSpacing: 0.3 },
+  titleWrap: { flex: 1, flexShrink: 1, minWidth: 64 },
+  title: { fontSize: font.h2, fontWeight: '800', color: colors.onDark, letterSpacing: 0.3 },
   sub:   { fontSize: font.tiny, color: colors.subOnDark, marginTop: 2, fontWeight: '600', letterSpacing: 0.3 },
 
   voiceBtn:     { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },

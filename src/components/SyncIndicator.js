@@ -39,27 +39,28 @@ export default function SyncIndicator() {
   const hasDead    = dead > 0;
   const hasPending = pending > 0 || hasDead;
   const count      = pending + dead;
-  // icon + colour + Telugu word (never colour alone)
-  const dotColor = hasDead ? '#ff6b6b' : hasPending ? '#ffd166' : '#7BE0A4';
-  const icon     = hasDead ? '⛔' : hasPending ? '⏳' : '✓';
-  const word     = hasDead ? `${count} సమస్య` : hasPending ? `${count} ఆగింది` : 'సేవ్';
+  // Only show words when something needs attention; when all-synced stay a
+  // quiet green ✓ so it doesn't look like a "Save" button.
+  const word = hasDead ? `${count} సమస్య` : `${count} ఆగింది`;
 
   return (
     <TouchableOpacity
       onPress={handlePress}
       style={[styles.wrap, hasPending && styles.wrapAttention]}
       activeOpacity={hasPending ? 0.7 : 1}
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      accessibilityLabel={`sync ${word}`}
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      accessibilityLabel={hasPending ? `sync ${word}` : 'synced'}
     >
       {syncing ? (
         <ActivityIndicator size="small" color="#fff" />
-      ) : (
+      ) : hasPending ? (
         <>
-          <View style={[styles.dot, { backgroundColor: dotColor }]} />
-          <Text style={styles.icon}>{icon}</Text>
+          <Text style={styles.icon}>{hasDead ? '⛔' : '⏳'}</Text>
           <Text style={styles.text} numberOfLines={1}>{word}</Text>
         </>
+      ) : (
+        // all synced — quiet green tick, no misleading word
+        <View style={styles.okDot}><Text style={styles.okTick}>✓</Text></View>
       )}
     </TouchableOpacity>
   );
@@ -72,14 +73,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 5,
     minHeight: 44,
+    minWidth: 36,
     borderRadius: 22,
-    paddingHorizontal: 12,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 6,
   },
   wrapAttention: {
     backgroundColor: 'rgba(255,209,102,0.28)',
+    paddingHorizontal: 12,
   },
-  dot:  { width: 10, height: 10, borderRadius: 5 },
+  okDot:  { width: 22, height: 22, borderRadius: 11, backgroundColor: '#7BE0A4', alignItems: 'center', justifyContent: 'center' },
+  okTick: { color: '#0f5132', fontSize: 13, fontWeight: '900' },
   icon: { fontSize: 13 },
   text: { color: '#fff', fontSize: 13, fontWeight: '700' },
 });
