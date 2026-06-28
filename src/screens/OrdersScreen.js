@@ -78,7 +78,9 @@ function fmtPaidDate(ts) {
   const h = d.getHours(), m = d.getMinutes();
   return `${d.getDate()} ${months[d.getMonth()]} ${String(h%12||12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`;
 }
-const newItem = () => ({ veg: null, qty: '1', price: '', lineTotal: 0 });
+// Order-time item: ordered in BAGS (bag mode) or in its own unit (unit mode).
+// No price at order time — price/kg comes with the bill at delivery.
+const newItem = () => ({ veg: null, mode: 'bag', bags: '1', expKg: '', expPrice: '', qty: '1' });
 
 // ── Cloudinary unsigned upload (no billing card, free tier) ───────────────────
 const CLOUDINARY_CLOUD_NAME    = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
@@ -129,6 +131,11 @@ export default function OrdersScreen() {
   // Receipt viewer state
   const [receiptModal,  setReceiptModal]  = useState(null); // order with receipt_url
   const [uploadingId,   setUploadingId]   = useState(null); // orderId being uploaded
+
+  // Receive sheet state (next-morning: weighed kg + bill price per item)
+  const [receiveModal, setReceiveModal] = useState(null); // the order being received
+  const [recvItems,    setRecvItems]    = useState([]);   // [{ weighed, price, quantity }]
+  const [savingRecv,   setSavingRecv]   = useState(false);
 
   // ── Data loading ─────────────────────────────────────────────────────────────
 
@@ -195,33 +202,81 @@ export default function OrdersScreen() {
     }, [])
   );
 
-  // ── Toggle received — local-first, no revert ─────────────────────────────────
+  // ── Receive (next morning): weigh + bill price per item ──────────────────────
 
-  const toggleReceived = (order) => {
-    const orderId = order.id || order._localId;
-    const newStatus = order.status === 'received' ? 'placed' : 'received';
-    const newReceivedAt = newStatus === 'received' ? new Date().toISOString() : null;
-
-    setOrders((prev) => prev.map((o) => {
-      const oId = o.id || o._localId;
-      return oId === orderId ? { ...o, status: newStatus, received_at: newReceivedAt } : o;
+  const openReceive = (order) => {
+    const rows = (order.items || []).map((it) => ({
+      weighed:  '',
+      price:    it.expected_price ? String(it.expected_price) : '',
+      quantity: it.order_mode === 'unit' ? String(it.quantity || '') : '',
     }));
+    setRecvItems(rows);
+    setReceiveModal(order);
+    Voice.speak('సరుకు అందింది, తూకం రాయండి');
+  };
 
-    // Speak the new state
-    const vName = order.vendor_name || '';
-    Voice.speak(newStatus === 'received' ? `${vName} సరుకు అందింది` : `${vName} సరుకు రాలేదు`);
+  const updateRecv = (idx, field, value) => {
+    setRecvItems((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], [field]: value };
+      return next;
+    });
+  };
 
-    if (order.id && !order.id.startsWith('local_')) {
-      updateDoc(doc(db, 'vendor_orders', order.id), {
-        status:      newStatus,
-        received_at: newStatus === 'received' ? serverTimestamp() : null,
-      }).catch(() => {
-        SyncQueue.add({
-          type: 'updateDoc',
-          path: ['vendor_orders', order.id],
-          data: { status: newStatus, received_at: newReceivedAt },
-        });
-      });
+  const recvTotal = receiveModal
+    ? (receiveModal.items || []).reduce((s, it, idx) => {
+        const r = recvItems[idx] || {};
+        const p = parseFloat(r.price) || 0;
+        const qty = it.order_mode === 'bag' ? (parseFloat(r.weighed) || 0) : (parseFloat(r.quantity) || it.quantity || 0);
+        return s + qty * p;
+      }, 0)
+    : 0;
+
+  const confirmReceive = async () => {
+    const order = receiveModal;
+    if (!order) return;
+    // Validate: every item needs a price and a quantity/weight.
+    const bad = (order.items || []).some((it, idx) => {
+      const r = recvItems[idx] || {};
+      const p = parseFloat(r.price) || 0;
+      const qty = it.order_mode === 'bag' ? (parseFloat(r.weighed) || 0) : (parseFloat(r.quantity) || it.quantity || 0);
+      return p <= 0 || qty <= 0;
+    });
+    if (bad) {
+      Voice.speak('తూకం, రేటు రాయండి');
+      Alert.alert('తూకం, రేటు రాయండి', 'ప్రతి కూరగాయకి తూకం (కేజీ) మరియు బిల్లు రేటు నమోదు చేయండి.');
+      return;
+    }
+
+    setSavingRecv(true);
+    const items = (order.items || []).map((it, idx) => {
+      const r = recvItems[idx] || {};
+      const p = parseFloat(r.price) || 0;
+      if (it.order_mode === 'bag') {
+        const w = parseFloat(r.weighed) || 0;
+        return { ...it, weighed_kg: w, buy_price: p, quantity: w, line_total: parseFloat((w * p).toFixed(2)) };
+      }
+      const q = parseFloat(r.quantity) || it.quantity || 0;
+      return { ...it, buy_price: p, quantity: q, line_total: parseFloat((q * p).toFixed(2)) };
+    });
+    const total = parseFloat(items.reduce((s, it) => s + (it.line_total || 0), 0).toFixed(2));
+    const receivedAt = new Date().toISOString();
+    const orderId = order.id || order._localId;
+
+    setOrders((prev) => prev.map((o) =>
+      (o.id || o._localId) === orderId
+        ? { ...o, items, total_amount: total, status: 'received', received_at: receivedAt }
+        : o
+    ));
+    setReceiveModal(null);
+    setRecvItems([]);
+    setSavingRecv(false);
+    Voice.speak(`సరుకు అందింది, మొత్తం ${Voice.money(total)}`);
+
+    if (orderId && !orderId.startsWith('local_')) {
+      const data = { items, total_amount: total, status: 'received' };
+      updateDoc(doc(db, 'vendor_orders', orderId), { ...data, received_at: serverTimestamp(), updated_at: serverTimestamp() })
+        .catch(() => SyncQueue.add({ type: 'updateDoc', path: ['vendor_orders', orderId], data: { ...data, received_at: receivedAt } }));
     }
   };
 
@@ -445,11 +500,7 @@ export default function OrdersScreen() {
   const updateField = (idx, field, value) => {
     setFormItems((prev) => {
       const next = [...prev];
-      const item = { ...next[idx], [field]: value };
-      const q = parseFloat(field === 'qty'   ? value : item.qty)   || 0;
-      const p = parseFloat(field === 'price' ? value : item.price) || 0;
-      item.lineTotal = parseFloat((q * p).toFixed(2));
-      next[idx] = item;
+      next[idx] = { ...next[idx], [field]: value };
       return next;
     });
   };
@@ -458,13 +509,20 @@ export default function OrdersScreen() {
     if (vegSheetOpenIdx === null) return;
     setFormItems((prev) => {
       const next = [...prev];
-      next[vegSheetOpenIdx] = { ...next[vegSheetOpenIdx], veg };
+      // Default to bag mode for kg veg; unit mode for piece/bundle/dozen.
+      const mode = (veg.unit ?? 'kg') === 'kg' ? 'bag' : 'unit';
+      next[vegSheetOpenIdx] = { ...next[vegSheetOpenIdx], veg, mode };
       return next;
     });
     setVegSheetOpenIdx(null);
   };
 
-  const grandTotal = formItems.reduce((s, i) => s + i.lineTotal, 0);
+  // Rough expected total (for display only) — bag: expKg×expPrice, unit: qty×expPrice.
+  const expectedTotal = formItems.reduce((s, i) => {
+    const p = parseFloat(i.expPrice) || 0;
+    const base = i.mode === 'bag' ? (parseFloat(i.expKg) || 0) : (parseFloat(i.qty) || 0);
+    return s + base * p;
+  }, 0);
 
   const resetForm = () => {
     setSelectedVendor(null);
@@ -479,7 +537,9 @@ export default function OrdersScreen() {
       Alert.alert('వెండర్ ఎంచుకోండి', 'సరఫరాదారుని ఎంచుకోండి.');
       return;
     }
-    const valid = formItems.filter((i) => i.veg && parseFloat(i.qty) > 0);
+    const valid = formItems.filter((i) =>
+      i.veg && (i.mode === 'bag' ? parseFloat(i.bags) > 0 : parseFloat(i.qty) > 0)
+    );
     if (!valid.length) {
       Voice.speak('ఒక్క కూరగాయ అయినా పెట్టండి');
       Alert.alert('కూరగాయ లేదు', 'ఒక్క కూరగాయ అయినా పెట్టండి.');
@@ -492,16 +552,26 @@ export default function OrdersScreen() {
       vendor_name:    selectedVendor.name,
       vendor_name_en: selectedVendor.name_en ?? '',
       order_date:     todayStr(),
-      items: valid.map((i) => ({
-        veg_id:      i.veg.id,
-        veg_name_en: i.veg.name_en,
-        veg_name_te: i.veg.name_te,
-        quantity:    parseFloat(i.qty),
-        unit:        i.veg.unit ?? 'kg',
-        buy_price:   parseFloat(i.price) || 0,
-        line_total:  i.lineTotal,
-      })),
-      total_amount:   parseFloat(grandTotal.toFixed(2)),
+      items: valid.map((i) => {
+        const base = {
+          veg_id:      i.veg.id,
+          veg_name_en: i.veg.name_en,
+          veg_name_te: i.veg.name_te,
+          emoji:       i.veg.emoji ?? '',
+          unit:        i.veg.unit ?? 'kg',
+          order_mode:  i.mode,
+          expected_price: parseFloat(i.expPrice) || 0,
+          // filled at receive:
+          buy_price:   null,
+          line_total:  0,
+        };
+        if (i.mode === 'bag') {
+          return { ...base, bags: parseFloat(i.bags) || 0, expected_kg: parseFloat(i.expKg) || 0, weighed_kg: null, marked_kg: null, quantity: 0 };
+        }
+        return { ...base, quantity: parseFloat(i.qty) || 0 };
+      }),
+      total_amount:   0,                 // unknown until the bill arrives at receive
+      expected_total: parseFloat(expectedTotal.toFixed(2)),
       status:         'placed',
       payment_status: 'pending',
       received_at:    null,
@@ -518,7 +588,7 @@ export default function OrdersScreen() {
     setShowAdd(false);
     resetForm();
     setSaving(false);
-    Voice.speak(`సరుకు రాసాను, మొత్తం ${Voice.money(orderData.total_amount)}`);
+    Voice.speak('ఆర్డర్ రాసాను'); // total comes with the bill at delivery
 
     try {
       await setDoc(doc(db, 'vendor_orders', orderId), { ...orderData, placed_at: serverTimestamp(), created_at: serverTimestamp() });
@@ -561,34 +631,49 @@ export default function OrdersScreen() {
             </Text>
           </View>
           <View style={styles.toggleWrap}>
-            <Text style={[styles.toggleLabel, isReceived && styles.toggleLabelOn]}>
-              {isReceived ? 'అందింది ✓' : 'రాలేదు'}
-            </Text>
-            <Switch
-              value={isReceived}
-              onValueChange={() => toggleReceived(order)}
-              trackColor={{ false: '#ddd', true: '#74c69d' }}
-              thumbColor={isReceived ? '#2d6a4f' : '#aaa'}
-            />
+            {isReceived ? (
+              <Text style={[styles.toggleLabel, styles.toggleLabelOn]}>అందింది ✓</Text>
+            ) : (
+              <TouchableOpacity style={styles.receiveBtn} onPress={() => openReceive(order)}>
+                <Text style={styles.receiveBtnText}>📥 అందింది · Receive</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
         {/* Items */}
-        {(order.items || []).map((item, i) => (
-          <View key={i} style={styles.itemRow}>
-            <Text style={styles.itemName}>{item.veg_name_te}</Text>
-            <Text style={styles.itemQty}>{item.quantity} {UNIT_TE[item.unit] ?? item.unit}</Text>
-            <Text style={styles.itemPrice}>{inr(item.buy_price)}</Text>
-            <Text style={styles.itemTotal}>{inr((item.quantity || 0) * (item.buy_price || 0))}</Text>
-          </View>
-        ))}
+        {(order.items || []).map((item, i) => {
+          const u = UNIT_TE[item.unit] ?? item.unit;
+          if (!isReceived) {
+            const desc = item.order_mode === 'bag'
+              ? `${item.bags} బస్తాలు${item.expected_kg ? ` (~${item.expected_kg} కేజీ)` : ''}`
+              : `${item.quantity} ${u}`;
+            return (
+              <View key={i} style={styles.itemRow}>
+                <Text style={styles.itemName}>{item.veg_name_te}</Text>
+                <Text style={[styles.itemQty, { flex: 2, textAlign: 'right' }]}>{desc}</Text>
+              </View>
+            );
+          }
+          return (
+            <View key={i} style={styles.itemRow}>
+              <Text style={styles.itemName}>{item.veg_name_te}</Text>
+              <Text style={styles.itemQty}>{item.quantity} {u}</Text>
+              <Text style={styles.itemPrice}>{inr(item.buy_price)}</Text>
+              <Text style={styles.itemTotal}>{inr(item.line_total ?? (item.quantity || 0) * (item.buy_price || 0))}</Text>
+            </View>
+          );
+        })}
 
         {/* Total */}
         <View style={styles.orderFooter}>
-          <Text style={styles.orderTotal}>మొత్తం: {inr(order.total_amount || 0)}</Text>
+          {isReceived
+            ? <Text style={styles.orderTotal}>మొత్తం: {inr(order.total_amount || 0)}</Text>
+            : (order.expected_total ? <Text style={[styles.orderTotal, { color: '#8a978d' }]}>అంచనా: {inr(order.expected_total)}</Text> : null)}
         </View>
 
-        {/* ── Payment section ── */}
+        {/* ── Payment section (only after the bill/goods arrive) ── */}
+        {isReceived && (<>
         <View style={styles.payDivider} />
         <View style={styles.paySection}>
           {isPaid ? (
@@ -640,6 +725,7 @@ export default function OrdersScreen() {
             </View>
           )}
         </View>
+        </>)}
       </View>
     );
   };
@@ -750,44 +836,67 @@ export default function OrdersScreen() {
                       </TouchableOpacity>
                     )}
 
-                    <Text style={styles.inputLabel}>ఎన్ని {UNIT_TE[item.veg?.unit] ?? 'కేజీ'}?</Text>
-                    <QuantityPicker
-                      value={item.qty}
-                      onChange={(v) => updateField(idx, 'qty', v)}
-                      unit={UNIT_TE[item.veg?.unit] ?? 'కేజీ'}
-                    />
+                    {item.veg && (
+                      <>
+                        {/* Order mode: bags or unit */}
+                        <View style={styles.modeRow2}>
+                          <TouchableOpacity
+                            style={[styles.modeChip, item.mode === 'bag' && styles.modeChipOn]}
+                            onPress={() => { updateField(idx, 'mode', 'bag'); Voice.speak('బస్తాలు'); }}
+                          >
+                            <Text style={[styles.modeChipText, item.mode === 'bag' && styles.modeChipTextOn]}>🛍 బస్తాలు</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.modeChip, item.mode === 'unit' && styles.modeChipOn]}
+                            onPress={() => { updateField(idx, 'mode', 'unit'); Voice.speak(UNIT_TE[item.veg?.unit] ?? 'కేజీ'); }}
+                          >
+                            <Text style={[styles.modeChipText, item.mode === 'unit' && styles.modeChipTextOn]}>⚖️ {UNIT_TE[item.veg?.unit] ?? 'కేజీ'}</Text>
+                          </TouchableOpacity>
+                        </View>
 
-                    <View style={styles.priceRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.inputLabel}>కొనుగోలు ధర · Buying price per {UNIT_TE[item.veg?.unit] ?? 'కేజీ'}</Text>
+                        {item.mode === 'bag' ? (
+                          <>
+                            <Text style={styles.inputLabel}>ఎన్ని బస్తాలు? · How many bags?</Text>
+                            <QuantityPicker
+                              value={item.bags}
+                              onChange={(v) => updateField(idx, 'bags', v)}
+                              unit="బస్తాలు"
+                            />
+                            <Text style={styles.inputLabel}>అంచనా కేజీలు (కావాలంటే) · Expected kg (optional)</Text>
+                            <TextInput
+                              style={styles.optInput}
+                              keyboardType="numeric"
+                              placeholder="ఉదా. 100"
+                              placeholderTextColor="#bbb"
+                              value={item.expKg}
+                              onChangeText={(v) => { const c = v.replace(',', '.'); if (/^\d*\.?\d*$/.test(c)) updateField(idx, 'expKg', c); }}
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <Text style={styles.inputLabel}>ఎన్ని {UNIT_TE[item.veg?.unit] ?? 'కేజీ'}?</Text>
+                            <QuantityPicker
+                              value={item.qty}
+                              onChange={(v) => updateField(idx, 'qty', v)}
+                              unit={UNIT_TE[item.veg?.unit] ?? 'కేజీ'}
+                            />
+                          </>
+                        )}
+
+                        <Text style={styles.inputLabel}>అనుకున్న రేటు (కావాలంటే) · Expected ₹/{item.mode === 'bag' ? 'కేజీ' : (UNIT_TE[item.veg?.unit] ?? 'కేజీ')}</Text>
                         <View style={styles.priceInputWrap}>
                           <Text style={styles.rupee}>₹</Text>
                           <TextInput
                             style={styles.priceInput}
                             keyboardType="numeric"
-                            placeholder="0"
+                            placeholder="ఉదా. 40"
                             placeholderTextColor="#bbb"
-                            value={item.price}
-                            onFocus={() => { if (item.veg) Voice.speak(`${item.veg.name_te} కొనుగోలు ధర`); }}
-                            onChangeText={(v) => {
-                              const clean = v.replace(',', '.');
-                              if (/^\d*\.?\d*$/.test(clean)) updateField(idx, 'price', clean);
-                            }}
-                            onBlur={() => {
-                              // Speak the line total once the buy price is entered,
-                              // e.g. "టమాట 6 కేజీ, మొత్తం 120 రూపాయలు"
-                              if (item.veg && item.lineTotal > 0) {
-                                Voice.speak(`${item.veg.name_te} ${item.qty} ${UNIT_TE[item.veg.unit] ?? 'కేజీ'}, మొత్తం ${Voice.money(item.lineTotal)}`);
-                              }
-                            }}
+                            value={item.expPrice}
+                            onChangeText={(v) => { const c = v.replace(',', '.'); if (/^\d*\.?\d*$/.test(c)) updateField(idx, 'expPrice', c); }}
                           />
                         </View>
-                      </View>
-                      <View style={{ alignItems: 'flex-end', justifyContent: 'flex-end' }}>
-                        <Text style={styles.inputLabel}>మొత్తం</Text>
-                        <Text style={styles.lineTotal}>{inr(item.lineTotal)}</Text>
-                      </View>
-                    </View>
+                      </>
+                    )}
 
                     <TouchableOpacity
                       onPress={() => setFormItems((p) => p.length === 1 ? [newItem()] : p.filter((_, i) => i !== idx))}
@@ -802,10 +911,13 @@ export default function OrdersScreen() {
                   <Text style={styles.addItemText}>➕ వేరొక కూరగాయ చేర్చు</Text>
                 </TouchableOpacity>
 
-                <View style={styles.grandTotalRow}>
-                  <Text style={styles.grandTotalLabel}>మొత్తం బిల్లు</Text>
-                  <Text style={styles.grandTotalValue}>{inr(grandTotal)}</Text>
-                </View>
+                {expectedTotal > 0 && (
+                  <View style={styles.grandTotalRow}>
+                    <Text style={styles.grandTotalLabel}>అంచనా బిల్లు · Expected</Text>
+                    <Text style={styles.grandTotalValue}>{inr(expectedTotal)}</Text>
+                  </View>
+                )}
+                <Text style={styles.billNote}>రేటు, మొత్తం బిల్లు సరుకు వచ్చాక · Price & total come with the bill</Text>
 
                 <TouchableOpacity
                   style={[styles.saveBtn, saving && { backgroundColor: '#74c69d' }]}
@@ -813,9 +925,7 @@ export default function OrdersScreen() {
                   disabled={saving}
                 >
                   <Text style={styles.saveBtnText}>
-                    {saving
-                      ? 'ఆగండి...'
-                      : `✓ ఆర్డర్ రాయండి · Save Order  ${inr(grandTotal)}`}
+                    {saving ? 'ఆగండి...' : '✓ ఆర్డర్ రాయండి · Save Order'}
                   </Text>
                 </TouchableOpacity>
               </>
@@ -845,6 +955,72 @@ export default function OrdersScreen() {
         selectedId={formItems[vegSheetOpenIdx ?? 0]?.veg?.id}
         type="vegetable"
       />
+
+      {/* ── Receive sheet (weigh + bill price) ── */}
+      <Modal visible={!!receiveModal} transparent animationType="slide" onRequestClose={() => setReceiveModal(null)}>
+        <TouchableOpacity style={styles.sheetOverlay} activeOpacity={1} onPress={() => setReceiveModal(null)} />
+        <View style={styles.paySheet}>
+          <View style={styles.sheetHandle} />
+          <Text style={styles.sheetTitle}>📥 సరుకు అందింది · Receive</Text>
+          <Text style={styles.sheetVendor}>{receiveModal?.vendor_name_en || receiveModal?.vendor_name}</Text>
+          <ScrollView style={{ maxHeight: 380 }} keyboardShouldPersistTaps="handled">
+            {(receiveModal?.items || []).map((it, idx) => {
+              const u = UNIT_TE[it.unit] ?? it.unit;
+              const ordered = it.order_mode === 'bag'
+                ? `${it.bags} బస్తాలు${it.expected_kg ? ` (~${it.expected_kg} కేజీ)` : ''}`
+                : `${it.quantity} ${u}`;
+              const r = recvItems[idx] || {};
+              return (
+                <View key={idx} style={styles.recvRow}>
+                  <Text style={styles.recvVeg}>{it.veg_name_te} <Text style={styles.recvOrdered}>· ఆర్డర్: {ordered}</Text></Text>
+                  <View style={styles.recvInputs}>
+                    {it.order_mode === 'bag' ? (
+                      <View style={styles.recvField}>
+                        <Text style={styles.recvLabel}>తూకం (కేజీ) · Weighed</Text>
+                        <TextInput
+                          style={styles.recvInput} keyboardType="numeric" placeholder="0" placeholderTextColor="#bbb"
+                          value={r.weighed}
+                          onChangeText={(v) => { const c = v.replace(',', '.'); if (/^\d*\.?\d*$/.test(c)) updateRecv(idx, 'weighed', c); }}
+                          onBlur={() => { if (r.weighed) Voice.speak(`${it.veg_name_te} ${r.weighed} కేజీ`); }}
+                        />
+                      </View>
+                    ) : (
+                      <View style={styles.recvField}>
+                        <Text style={styles.recvLabel}>ఎంత ({u}) · Qty</Text>
+                        <TextInput
+                          style={styles.recvInput} keyboardType="numeric" placeholder="0" placeholderTextColor="#bbb"
+                          value={r.quantity}
+                          onChangeText={(v) => { const c = v.replace(',', '.'); if (/^\d*\.?\d*$/.test(c)) updateRecv(idx, 'quantity', c); }}
+                        />
+                      </View>
+                    )}
+                    <View style={styles.recvField}>
+                      <Text style={styles.recvLabel}>బిల్లు రేటు ₹ · Bill price</Text>
+                      <TextInput
+                        style={styles.recvInput} keyboardType="numeric" placeholder="0" placeholderTextColor="#bbb"
+                        value={r.price}
+                        onFocus={() => Voice.speak(`${it.veg_name_te} బిల్లు రేటు`)}
+                        onChangeText={(v) => { const c = v.replace(',', '.'); if (/^\d*\.?\d*$/.test(c)) updateRecv(idx, 'price', c); }}
+                      />
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </ScrollView>
+          <View style={styles.grandTotalRow}>
+            <Text style={styles.grandTotalLabel}>మొత్తం · Total</Text>
+            <Text style={styles.grandTotalValue}>{inr(recvTotal)}</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.confirmPayBtn, savingRecv && { backgroundColor: '#74c69d' }]}
+            onPress={confirmReceive}
+            disabled={savingRecv}
+          >
+            <Text style={styles.confirmPayBtnText}>{savingRecv ? 'ఆగండి...' : '✓ సరుకు అందింది · Confirm'}</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       {/* ── Payment bottom sheet modal ── */}
       <Modal
@@ -1010,6 +1186,26 @@ const styles = StyleSheet.create({
   pendingBadgeText: { color: '#856404', fontSize: 12, fontWeight: '700' },
   markPaidBtn:      { marginLeft: 'auto', backgroundColor: '#2d6a4f', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
   markPaidBtnText:  { color: '#fff', fontSize: 13, fontWeight: '700' },
+  receiveBtn:      { backgroundColor: '#2d6a4f', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  receiveBtnText:  { color: '#fff', fontSize: 13, fontWeight: '800' },
+
+  // Order-form bag/unit mode + optional inputs
+  modeRow2:      { flexDirection: 'row', gap: 8, marginTop: 10, marginBottom: 4 },
+  modeChip:      { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 2, borderColor: '#b7e4c7', alignItems: 'center', backgroundColor: '#fff' },
+  modeChipOn:    { backgroundColor: '#1a472a', borderColor: '#1a472a' },
+  modeChipText:  { fontSize: 15, fontWeight: '700', color: '#2d6a4f' },
+  modeChipTextOn:{ color: '#fff' },
+  optInput:      { borderWidth: 1.5, borderColor: '#b7e4c7', borderRadius: 8, backgroundColor: '#f8fff8', paddingHorizontal: 12, height: 44, fontSize: 16, fontWeight: '600', color: '#1a1a1a' },
+  billNote:      { fontSize: 12, color: '#8a978d', fontStyle: 'italic', marginBottom: 12 },
+
+  // Receive sheet
+  recvRow:      { borderBottomWidth: 1, borderBottomColor: '#f0f0f0', paddingVertical: 10 },
+  recvVeg:      { fontSize: 16, fontWeight: '700', color: '#1a472a', marginBottom: 8 },
+  recvOrdered:  { fontSize: 12, fontWeight: '500', color: '#8a978d' },
+  recvInputs:   { flexDirection: 'row', gap: 12 },
+  recvField:    { flex: 1 },
+  recvLabel:    { fontSize: 11, color: '#666', fontWeight: '600', marginBottom: 4 },
+  recvInput:    { borderWidth: 1.5, borderColor: '#b7e4c7', borderRadius: 8, backgroundColor: '#f8fff8', paddingHorizontal: 10, height: 44, fontSize: 16, fontWeight: '700', color: '#1a472a', textAlign: 'center' },
   receiptBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, gap: 6 },
   receiptBtnGreen:  { borderColor: '#2d6a4f', backgroundColor: '#f0fff4' },
   receiptBtnText:   { fontSize: 13, color: '#666', fontWeight: '600' },
