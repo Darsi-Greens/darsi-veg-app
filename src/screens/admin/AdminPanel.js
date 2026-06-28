@@ -5,12 +5,15 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import * as ImagePicker from 'expo-image-picker';
 import {
   collection, getDocs, addDoc, doc, updateDoc, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { LocalDB } from '../../services/LocalDB';
 import { Voice } from '../../services/Speak';
+import VegImage from '../../components/VegImage';
+import { uploadImage, cloudinaryConfigured } from '../../services/cloudinary';
 
 const ADMIN_PIN_KEY   = 'pin_admin';
 const REGULAR_PIN_KEY = 'pin_regular';
@@ -382,6 +385,44 @@ function VegetablesTab() {
   const [form,        setForm]        = useState({ name_te: '', name_en: '', emoji: '', photo_url: '', unit: 'kg', active: true });
   const [saving,      setSaving]      = useState(false);
   const [translating, setTranslating] = useState(false);
+  const [photoBusy,   setPhotoBusy]   = useState(false);
+
+  const pickVegPhoto = () => {
+    if (!cloudinaryConfigured()) {
+      Alert.alert('సెటప్ కాలేదు · Not set up', 'Cloudinary keys missing in .env.');
+      return;
+    }
+    Alert.alert('📷 కూరగాయ ఫోటో · Vegetable photo', 'ఫోటో ఎంచుకోండి · Choose photo', [
+      { text: '📷 ఫోటో తీయండి · Camera',    onPress: () => grabVegPhoto('camera') },
+      { text: '🖼️ గ్యాలరీ నుండి · Gallery', onPress: () => grabVegPhoto('gallery') },
+      { text: '✕ వద్దు · Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const grabVegPhoto = async (source) => {
+    try {
+      const perm = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.status !== 'granted') {
+        Alert.alert('అనుమతి కావాలి · Permission needed', 'ఫోన్ Settings లో అనుమతి ఇవ్వండి.');
+        return;
+      }
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.6 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6 });
+      if (result.canceled) return;
+      const uri = result.assets?.[0]?.uri;
+      if (!uri) { Alert.alert('ఫోటో రాలేదు · No photo'); return; }
+      setPhotoBusy(true);
+      const url = await uploadImage(uri, 'vegetables');
+      setForm((p) => ({ ...p, photo_url: url }));
+    } catch (e) {
+      Alert.alert('ఫోటో లోపం · Photo error', String(e?.message || e));
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
 
   const loadVegs = useCallback(async () => {
     setLoading(true);
@@ -471,7 +512,7 @@ function VegetablesTab() {
         contentContainerStyle={{ padding: 12 }}
         renderItem={({ item }) => (
           <View style={[styles.vegRow, !item.active && styles.inactiveCard]}>
-            <Text style={styles.vegEmoji}>{item.emoji ?? '🥬'}</Text>
+            <VegImage veg={item} size={40} />
             <View style={{ flex: 1 }}>
               <Text style={styles.vegNameEn}>{item.name_en}</Text>
               <Text style={styles.vegNameTe}>{item.name_te}  ·  {item.unit}</Text>
@@ -539,10 +580,18 @@ function VegetablesTab() {
               onChangeText={(v) => setForm((p) => ({ ...p, emoji: v }))}
             />
 
-            <Text style={styles.fieldLabel}>ఫోటో లింక్ · Photo URL (Cloudinary)</Text>
+            <Text style={styles.fieldLabel}>ఫోటో · Photo</Text>
+            <View style={styles.photoRow}>
+              <VegImage veg={form} size={64} rounded={false} />
+              <TouchableOpacity style={styles.photoBtn} onPress={pickVegPhoto} disabled={photoBusy}>
+                {photoBusy
+                  ? <ActivityIndicator color="#2e7d32" />
+                  : <Text style={styles.photoBtnText}>📷 ఫోటో తీయండి / ఎంచుకోండి</Text>}
+              </TouchableOpacity>
+            </View>
             <TextInput
               style={styles.input}
-              placeholder="https://res.cloudinary.com/.../tomato.jpg"
+              placeholder="లేదా లింక్ అతికించండి · or paste URL"
               autoCapitalize="none"
               value={form.photo_url}
               onChangeText={(v) => setForm((p) => ({ ...p, photo_url: v }))}
@@ -854,6 +903,9 @@ const styles = StyleSheet.create({
   saveBtnText:  { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1a472a', marginTop: 20, marginBottom: 10 },
+  photoRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  photoBtn:     { flex: 1, backgroundColor: '#e8f5ec', borderRadius: 10, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', minHeight: 56 },
+  photoBtnText: { fontSize: 14, fontWeight: '700', color: '#2e7d32' },
   testVoiceBtn:  { marginTop: 4, padding: 12, backgroundColor: '#e8f5ec', borderRadius: 10, alignItems: 'center' },
   testVoiceText: { fontSize: 15, color: '#2e7d32', fontWeight: '700' },
   voiceStatus:   { fontSize: 12, color: '#666', marginTop: 8, lineHeight: 18 },
