@@ -810,6 +810,28 @@ export default function OrdersScreen() {
           </View>
 
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+            {/* Progress: 1 vendor → 2 vegetables → 3 save */}
+            {(() => {
+              const hasItems = formItems.some((i) => i.veg && (i.mode === 'bag' ? parseFloat(i.bags) > 0 : parseFloat(i.qty) > 0));
+              const step = !selectedVendor ? 1 : (!hasItems ? 2 : 3);
+              const steps = [{ n: 1, label: 'వెండర్' }, { n: 2, label: 'కూరగాయలు' }, { n: 3, label: 'సేవ్' }];
+              return (
+                <View style={styles.progressRow}>
+                  {steps.map((s, i) => (
+                    <React.Fragment key={s.n}>
+                      <View style={styles.progStep}>
+                        <View style={[styles.progDot, step === s.n && styles.progDotActive, step > s.n && styles.progDotDone]}>
+                          <Text style={[styles.progDotText, step >= s.n && styles.progDotTextOn]}>{step > s.n ? '✓' : s.n}</Text>
+                        </View>
+                        <Text style={[styles.progLabel, step === s.n && styles.progLabelActive]} numberOfLines={1}>{s.label}</Text>
+                      </View>
+                      {i < steps.length - 1 && <View style={[styles.progLine, step > s.n && styles.progLineDone]} />}
+                    </React.Fragment>
+                  ))}
+                </View>
+              );
+            })()}
+
             <Text style={styles.stepLabel}>STEP 1 · వెండర్</Text>
             {selectedVendor ? (
               <View style={styles.selectedBar}>
@@ -1251,6 +1273,19 @@ const styles = StyleSheet.create({
 
   // Add order form
   stepLabel: { fontSize: 11, fontWeight: '800', color: '#2d6a4f', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
+
+  // New-order progress (1 vendor → 2 veg → 3 save)
+  progressRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
+  progStep:       { alignItems: 'center', width: 72 },
+  progDot:        { width: 32, height: 32, borderRadius: 16, backgroundColor: '#e0e7e2', alignItems: 'center', justifyContent: 'center' },
+  progDotActive:  { backgroundColor: '#2d6a4f' },
+  progDotDone:    { backgroundColor: '#74c69d' },
+  progDotText:    { fontSize: 15, fontWeight: '800', color: '#8a978d' },
+  progDotTextOn:  { color: '#fff' },
+  progLabel:      { fontSize: 11, color: '#8a978d', marginTop: 4, fontWeight: '600' },
+  progLabelActive:{ color: '#1a472a', fontWeight: '800' },
+  progLine:       { flex: 1, height: 3, backgroundColor: '#e0e7e2', marginTop: -16 },
+  progLineDone:   { backgroundColor: '#74c69d' },
   selectBtn:     { backgroundColor: '#2d6a4f', borderRadius: 14, paddingVertical: 18, alignItems: 'center', marginBottom: 8 },
   selectBtnText: { fontSize: 17, fontWeight: '700', color: '#fff' },
   selectedBar:     { backgroundColor: '#2d6a4f', borderRadius: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8 },

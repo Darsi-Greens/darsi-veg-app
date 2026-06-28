@@ -36,6 +36,13 @@ function fmtDate(s) {
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
+const TE_MONTHS = ['జనవరి', 'ఫిబ్రవరి', 'మార్చి', 'ఏప్రిల్', 'మే', 'జూన్', 'జులై', 'ఆగస్టు', 'సెప్టెంబర్', 'అక్టోబర్', 'నవంబర్', 'డిసెంబర్'];
+function friendlyDay(s) {
+  if (!s) return '';
+  const d = new Date(s + 'T00:00:00');
+  return `${d.getDate()} ${TE_MONTHS[d.getMonth()]}`;
+}
+
 function fmtTime(ts) {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
@@ -61,6 +68,7 @@ export default function AnalyticsScreen() {
 
   // Month state
   const [monthData,   setMonthData]   = useState(null);
+  const [monthShowAll, setMonthShowAll] = useState(false);
 
   // Credit state
   const [creditSales, setCreditSales] = useState([]);
@@ -519,29 +527,42 @@ export default function AnalyticsScreen() {
         {/* ═══════════════ MONTH TAB ═══════════════ */}
         {activeTab === 'month' && monthData && (
           <>
-            {/* Month totals */}
-            <View style={s.card}>
-              <Text style={s.cardLabel}>నెల మొత్తం / {monthPrefix()}</Text>
-              <View style={s.monthTotals}>
-                <MonthCell label="అమ్మకాలు"  val={monthData.monthTotals.sales}  color="#2d6a4f" />
-                <MonthCell label="కొనుగోలు"  val={monthData.monthTotals.cost}   color="#e74c3c" />
-                <MonthCell label="ఖర్చులు"   val={monthData.monthTotals.exp}    color="#f6a623" />
-                <MonthCell label="లాభం"      val={monthData.monthTotals.profit} color={monthData.monthTotals.profit >= 0 ? '#1a472a' : '#e74c3c'} bold />
+            {/* 3 big summary cards */}
+            <Text style={[s.cardLabel, { marginLeft: 4 }]}>నెల మొత్తం / {monthPrefix()}</Text>
+            <View style={s.heroRow}>
+              <View style={[s.heroCard, { backgroundColor: '#e8f5ec' }]}>
+                <Text style={[s.heroNum, { color: '#2d6a4f' }]}>{inr(monthData.monthTotals.sales)}</Text>
+                <Text style={s.heroLabel}>అమ్మకాలు · Sales</Text>
+              </View>
+              <View style={[s.heroCard, { backgroundColor: monthData.monthTotals.profit >= 0 ? '#f0fff4' : '#fff5f5' }]}>
+                <Text style={[s.heroNum, { color: monthData.monthTotals.profit >= 0 ? '#1a472a' : '#e74c3c' }]}>{inr(monthData.monthTotals.profit)}</Text>
+                <Text style={s.heroLabel}>లాభం · Profit</Text>
+              </View>
+              <View style={[s.heroCard, { backgroundColor: '#fff8e1' }]}>
+                <Text style={[s.heroNum, { color: '#e65100' }]}>{inr(monthData.monthTotals.exp)}</Text>
+                <Text style={s.heroLabel}>ఖర్చులు · Expenses</Text>
               </View>
             </View>
 
-            {/* Per-day list */}
+            {/* Per-day list — collapsed to recent days */}
             <View style={s.card}>
               <Text style={s.cardLabel}>రోజువారీ / Per Day</Text>
-              {monthData.days.map((d) => (
+              {(monthShowAll ? monthData.days : monthData.days.slice(0, 6)).map((d) => (
                 <View key={d.date} style={s.dayRow}>
-                  <Text style={s.dayDate}>{fmtDate(d.date)}</Text>
+                  <Text style={s.dayDate}>{friendlyDay(d.date)}</Text>
                   <Text style={s.daySales}>{inr(d.sales)}</Text>
                   <Text style={[s.dayProfit, { color: d.profit >= 0 ? '#2d6a4f' : '#e74c3c' }]}>
                     {d.profit >= 0 ? '+' : ''}{inr(d.profit)}
                   </Text>
                 </View>
               ))}
+              {monthData.days.length > 6 && (
+                <TouchableOpacity style={s.showAllBtn} onPress={() => setMonthShowAll((v) => !v)}>
+                  <Text style={s.showAllText}>
+                    {monthShowAll ? '↑ తక్కువ చూపించు · Less' : `↓ అన్నీ చూడండి · Show all ${monthData.days.length}`}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Top vegetables this month */}
@@ -797,8 +818,14 @@ const s = StyleSheet.create({
 
   // Month
   monthTotals: { flexDirection: 'row', paddingVertical: 8 },
-  dayRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
-  dayDate:  { fontSize: 14, fontWeight: '600', color: '#555', width: 40 },
+  heroRow:   { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  heroCard:  { flex: 1, borderRadius: 14, paddingVertical: 16, paddingHorizontal: 8, alignItems: 'center', elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
+  heroNum:   { fontSize: 19, fontWeight: '800' },
+  heroLabel: { fontSize: 11, color: '#666', marginTop: 4, textAlign: 'center', fontWeight: '600' },
+  showAllBtn:  { paddingVertical: 12, alignItems: 'center', marginTop: 2 },
+  showAllText: { fontSize: 14, fontWeight: '700', color: '#2d6a4f' },
+  dayRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
+  dayDate:  { fontSize: 14, fontWeight: '600', color: '#555', width: 80 },
   daySales: { flex: 1, fontSize: 14, color: '#1a472a', textAlign: 'right' },
   dayProfit: { flex: 1, fontSize: 14, fontWeight: '700', textAlign: 'right' },
 
