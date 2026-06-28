@@ -28,6 +28,7 @@ import AppHeader from '../components/AppHeader';
 import { inr } from '../utils/money';
 import { Voice } from '../services/Speak';
 import VegImage from '../components/VegImage';
+import { tapBuzz } from '../services/haptics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_SIZE = (SCREEN_WIDTH - 48) / 2;
@@ -289,6 +290,7 @@ export default function Sales() {
   };
 
   const stepQty = (dir) => {
+    tapBuzz();
     const step = QTY_STEP[activeUnit] ?? 1;
     const next = Math.max(step, (parseFloat(qty) || 0) + dir * step);
     // For gm keep integer; for kg allow one decimal

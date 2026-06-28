@@ -16,6 +16,7 @@ import { newId } from '../services/ids';
 import { inr } from '../utils/money';
 import { Voice } from '../services/Speak';
 import VegImage from '../components/VegImage';
+import { tapBuzz } from '../services/haptics';
 import SyncIndicator from '../components/SyncIndicator';
 import AppHeader from '../components/AppHeader';
 
@@ -298,6 +299,7 @@ export default function AnalyticsScreen() {
   // ── Customer count ───────────────────────────────────────────────────────────
 
   const adjustCount = async (delta) => {
+    tapBuzz();
     const today = todayStr();
     const newCount = Math.max(0, customerCount + delta);
     setCustomerCount(newCount);

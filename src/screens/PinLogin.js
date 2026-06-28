@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { tapBuzz } from '../services/haptics';
 
 const APP_ENV = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
 
@@ -79,6 +80,7 @@ export default function PinLogin({ navigation }) {
   };
 
   const handleKey = (key) => {
+    if (key !== '') tapBuzz(); // tactile feedback on every keypad press
     if (key === '⌫') {
       setPin((p) => p.slice(0, -1));
       setError('');

@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, TextInput, StyleSheet,
 } from 'react-native';
 import { Voice } from '../services/Speak';
+import { tapBuzz } from '../services/haptics';
 
 const QUICK_QTYS = [1, 2, 5, 10, 20, 50];
 
@@ -12,9 +13,10 @@ export default function QuantityPicker({ value, onChange, unit = 'కేజీ',
 
   const numVal = parseFloat(value) || 0;
 
-  const handleQuick = (q) => { onChange(String(q)); Voice.speak(`${q} ${unit}`); };
+  const handleQuick = (q) => { tapBuzz(); onChange(String(q)); Voice.speak(`${q} ${unit}`); };
 
   const handleStep = (dir) => {
+    tapBuzz();
     const next = Math.max(0, parseFloat((numVal + dir * step).toFixed(2)));
     onChange(String(next));
     Voice.speak(`${next} ${unit}`);
